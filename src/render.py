@@ -7,6 +7,8 @@ CVD ΔE 21.6/19.2). 임의로 바꾸지 말 것.
 
 import html as _html
 
+from .notes import is_patch_number
+
 CSS = """
 :root {
   color-scheme: light;
@@ -91,6 +93,17 @@ def dist_bars(dist):
     axis = "".join(f"<span>{rank}</span>" for rank in range(1, 9))
     return (f'<div class="dist" role="img" aria-label="등수 분포">{"".join(bars)}</div>'
             f'<div class="dist-axis">{axis}</div>')
+
+
+def _patch_text(patch):
+    """패치 번호면 "패치 18.2", 아니면 정직하게 "집계 회차 409".
+
+    patch는 변화 감지용 내부 키를 겸해서 진짜 패치 번호가 아닐 수 있다.
+    출처 없는 주장은 안 올린다 — 클러스터 id를 패치 번호라고 부르지 않는다.
+    """
+    if not patch:
+        return "패치 정보 없음"
+    return f"패치 {_e(patch)}" if is_patch_number(patch) else f"집계 회차 {_e(patch)}"
 
 
 def _delta_badge(delta):
@@ -205,8 +218,11 @@ def _diff_banner(diff, summary):
         items = "".join(f"<li>{_e(bullet)}</li>" for bullet in summary["bullets"])
         official = (f'<p class="muted">공식 노트에서 네 덱에 걸리는 항목</p><ul>{items}</ul>'
                     f'<p class="muted"><a href="{_e(summary["url"])}">패치노트 원문</a></p>')
-    return (f'<div class="card"><h3>패치 {_e(diff["to_patch"])} 적용됨</h3>'
-            f'<div class="meta">직전 {_e(diff["from_patch"])} 대비</div>{body}{official}'
+    to_patch = diff.get("to_patch")
+    headline = f'패치 {_e(to_patch)} 적용됨' if is_patch_number(to_patch) else "집계 회차가 바뀜"
+    return (f'<div class="card"><h3>{headline}</h3>'
+            f'<div class="meta">직전 {_patch_text(diff.get("from_patch"))} 대비</div>'
+            f'{body}{official}'
             '<p class="muted">패치 직후 3~5일은 데이터가 안 굳는다. '
             '이 숫자만 보고 덱을 버리지 마라.</p></div>')
 
@@ -232,7 +248,7 @@ def page(context):
 <style>{CSS}</style>
 </head><body>
 <h1>브실골 롤체 치트시트</h1>
-<p class="meta">{_e(context["set"])} · 패치 {_e(context["patch"])} ·
+<p class="meta">{_e(context["set"])} · {_patch_text(context["patch"])} ·
 KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 {_e(context["generated_at"])} 기준</p>
 {stale}

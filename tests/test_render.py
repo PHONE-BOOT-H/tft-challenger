@@ -75,3 +75,23 @@ def test_라이트와_다크_토큰이_모두_정의된다():
     assert "#fcfcfb" in html and "#1a1a19" in html
     assert 'prefers-color-scheme: dark' in html
     assert '[data-theme="dark"]' in html
+
+
+def test_클러스터_id를_패치_번호라고_부르지_않는다():
+    # patch는 변화 감지용 내부 키를 겸한다. 패치 번호가 아니면 "패치"라고 쓰면 안 된다.
+    html = page(_context(patch="409"))
+    assert "집계 회차 409" in html
+    assert "패치 409" not in html
+
+
+def test_진짜_패치_번호는_패치라고_쓴다():
+    assert "패치 18.1" in page(_context(patch="18.1"))
+
+
+def test_배너도_클러스터_id를_패치라고_부르지_않는다():
+    html = page(_context(patch="410", diff={
+        "patch_changed": True, "from_patch": "409", "to_patch": "410",
+        "moved": [], "entered": [], "left": []}))
+    assert "집계 회차가 바뀜" in html
+    assert "직전 집계 회차 409 대비" in html
+    assert "패치 410" not in html

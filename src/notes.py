@@ -8,13 +8,23 @@ import html as _html
 import json
 import os
 import re
-import urllib.error
 import urllib.request
 
 from .sources import UA
 
 _BASE = "https://teamfighttactics.leagueoflegends.com/ko-kr/news/game-updates"
 MODEL = "claude-opus-5"
+_PATCH_SHAPE = re.compile(r"\d+\.\d+")
+
+
+def is_patch_number(label):
+    """이 라벨이 진짜 패치 번호("18.2")인가.
+
+    patch 라벨은 "바뀌었는가"를 감지하는 내부 키를 겸한다. 집계가 패치 번호를
+    안 주면 클러스터 id가 들어오므로, 패치 번호가 아닌 값이 섞인다.
+    URL에 넣거나 화면에 "패치"라고 붙이기 전에 여기를 통과시킨다.
+    """
+    return bool(_PATCH_SHAPE.fullmatch(label or ""))
 
 
 def patch_url(patch):
@@ -33,7 +43,10 @@ def fetch_patch_text(patch):
     try:
         with urllib.request.urlopen(request, timeout=40) as response:
             return strip_html(response.read().decode("utf-8", errors="replace"))
-    except (urllib.error.URLError, TimeoutError):
+    except Exception as exc:
+        # 원격에서 온 값으로 만든 URL이다. 어떻게 깨지든 요약 하나 없는 페이지가 정답이지
+        # 빌드 실패가 정답은 아니다.
+        print(f"패치노트 본문 받기 실패: {exc}")
         return None
 
 
@@ -111,6 +124,8 @@ def maybe_summarize(diff, deck_names):
     if not diff.get("patch_changed"):
         return None
     patch = diff.get("to_patch")
+    if not is_patch_number(patch):
+        return None
     text = fetch_patch_text(patch)
     if not text:
         return None

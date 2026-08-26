@@ -13,14 +13,16 @@ def _patch_label(payloads):
     """패치 식별자.
 
     목적은 예쁜 이름표가 아니라 "바뀌었는가"를 감지하는 것이다.
-    display_patch가 있으면 쓰고, 없으면 클러스터 id로 대체한다 —
-    클러스터는 패치마다 회전하므로 대체값으로도 감지가 된다.
+    display_patch가 있으면 진짜 패치 번호("18.2")지만 실측 응답에는 없었다.
+    없으면 클러스터 id를 그대로 쓴다 — 클러스터는 패치마다 회전하므로 감지가 된다.
+    즉 이 값은 패치 번호가 아닐 수 있다. 화면에 "패치"라고 붙이거나 패치노트
+    URL을 만들기 전에 notes.is_patch_number()로 걸러야 한다.
     """
     for key in ("comps_stats_low", "comps_data"):
         label = payloads.get(key, {}).get("display_patch")
         if label:
             return str(label)
-    return f"클러스터 {payloads['latest_cluster_id']['cluster_id']}"
+    return str(payloads["latest_cluster_id"]["cluster_id"])
 
 
 def build_context(payloads, cfg, now):
