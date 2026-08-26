@@ -91,17 +91,19 @@ def summarize(patch_text, deck_names, url):
 
     try:
         parsed = json.loads(text)
-        bullets = parsed.get("bullets")
-        if not isinstance(bullets, list) or not all(isinstance(b, str) for b in bullets):
-            print("패치노트 요약 실패: bullets가 문자열 배열이 아님")
-            return None
-        return {"bullets": bullets, "url": url}
     except json.JSONDecodeError as exc:
         print(f"패치노트 요약 실패: {exc}")
         return None
-    except (KeyError, TypeError) as exc:
-        print(f"패치노트 요약 실패: {exc}")
+
+    if not isinstance(parsed, dict):
+        print("패치노트 요약 실패: 응답이 JSON 객체가 아님")
         return None
+
+    bullets = parsed.get("bullets")
+    if not isinstance(bullets, list) or not all(isinstance(b, str) for b in bullets):
+        print("패치노트 요약 실패: bullets가 문자열 배열이 아님")
+        return None
+    return {"bullets": bullets, "url": url}
 
 
 def maybe_summarize(diff, deck_names):
