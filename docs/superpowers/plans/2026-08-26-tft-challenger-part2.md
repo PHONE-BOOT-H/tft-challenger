@@ -1064,7 +1064,16 @@ def summarize(patch_text, deck_names, url):
     text = next((b.text for b in response.content if b.type == "text"), None)
     if not text:
         return None
-    return {"bullets": json.loads(text)["bullets"], "url": url}
+    # 응답이 스키마를 어겨도 페이지 전체를 죽이면 안 된다. 파싱까지 닫아둔다.
+    try:
+        bullets = json.loads(text)["bullets"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"패치노트 요약 파싱 실패: {exc}")
+        return None
+    if not isinstance(bullets, list) or not all(isinstance(b, str) for b in bullets):
+        print("패치노트 요약 형식이 예상과 다름")
+        return None
+    return {"bullets": bullets, "url": url}
 
 
 def maybe_summarize(diff, deck_names):
@@ -1111,7 +1120,7 @@ from . import comps, fetch, indexes, names, notes, patchdiff, paths, render, sou
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 59 passed
+Expected: PASS — 63 passed
 
 - [ ] **Step 8: 커밋한다**
 
@@ -1168,6 +1177,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 셋 게이트가 멈춘 날(exit 2)에는 조건부 스텝들이 skip 될 뿐 잡은 success 로 끝난다.
+    # 그래서 deploy 잡이 그대로 돌고, 업로드된 아티팩트가 없어 deploy-pages 가 에러난다.
+    # 종료 코드를 잡 output 으로 올려 deploy 가 그것까지 보게 한다.
+    outputs:
+      code: ${{ steps.build.outputs.code }}
     steps:
       - uses: actions/checkout@v4
 
@@ -1216,7 +1230,7 @@ jobs:
 
   deploy:
     needs: build
-    if: needs.build.result == 'success'
+    if: needs.build.result == 'success' && needs.build.outputs.code == '0'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
