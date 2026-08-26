@@ -34,6 +34,13 @@ def test_셋_필드가_없으면_거부한다():
         check_set(payloads, expected="TFTSet18")
 
 
+def test_페이로드_소스가_완전하지_않으면_거부한다():
+    payloads = _payloads()
+    del payloads["early"]
+    with pytest.raises(SetMismatch):
+        check_set(payloads, expected="TFTSet18")
+
+
 def test_cluster_id가_맞으면_그_값을_돌려준다():
     assert pin_cluster(_payloads(cluster_id=410, data_id=410)) == 410
 

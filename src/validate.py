@@ -16,11 +16,13 @@ class ClusterMismatch(RuntimeError):
 
 
 def check_set(payloads, expected):
-    """받아온 페이로드 전부가 기대한 셋인지 확인한다. 하나라도 어긋나면 예외."""
+    """받아온 페이로드 전부가 기대한 셋인지 확인한다. 모든 소스가 있어야 하고, 하나라도 어긋나면 예외."""
+    missing = [key for key in _SET_SOURCES if key not in payloads]
+    if missing:
+        raise SetMismatch(f"페이로드 누락: {missing}")
+
     bad = []
     for key in _SET_SOURCES:
-        if key not in payloads:
-            continue
         got = payloads[key].get("tft_set")
         if got != expected:
             bad.append(f"{key}={got!r}")
