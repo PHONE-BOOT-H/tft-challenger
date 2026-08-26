@@ -192,20 +192,31 @@ td.n, th.n { text-align: right; }
 table tr:last-child td { border-bottom: 0; }
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-details { margin: 3px 0; border-radius: 10px; }
-details[open] { background: var(--surface-2); padding-bottom: 6px; }
-summary {
-  cursor: pointer; padding: 7px 9px; border-radius: 10px; font-size: 14px;
+/* 유닛 색인을 칩 그리드로. auto-fill이라 폭이 좁으면 3~4개, 넓으면 더 많이 앉는다 —
+   미디어쿼리 없이도 알아서 줄어든다. */
+.chips {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 5px; margin: 0 0 12px;
+}
+.chip { border-radius: 8px; background: var(--surface-2); box-shadow: var(--shadow); }
+.chip summary {
+  cursor: pointer; list-style: none; padding: 5px 7px; border-radius: 8px;
+  display: flex; flex-direction: column; gap: 1px; line-height: 1.25;
   transition: background-color 180ms ease, color 180ms ease;
 }
-summary:hover { background: var(--surface-2); color: var(--top4); }
-summary:active { background: var(--mid); }
-details[open] summary { font-weight: 600; }
-details .scroll { padding: 0 9px 2px; }
+.chip summary::-webkit-details-marker { display: none; } /* 기본 삼각형 마커 제거 */
+.chip-name { font-size: 13px; font-weight: 600; }
+.chip-count { font-size: 10px; color: var(--text2); } /* 이름보다 한 단 낮게 */
+.chip summary:hover { background: var(--mid); color: var(--top4); }
+.chip summary:active { background: var(--rail); }
+/* 펼친 칩은 표가 들어가니 그리드 한 줄을 통째로 차지한다. */
+.chip[open] { grid-column: 1 / -1; padding-bottom: 6px; }
+.chip[open] summary { color: var(--top4); }
+.chip .scroll { padding: 6px 2px 2px; }
 
 .sub {
   font-size: 10px; font-weight: 700; letter-spacing: .095em; color: var(--text2);
-  text-transform: uppercase; margin: 18px 0 4px;
+  text-transform: uppercase; margin: 10px 0 4px;
 }
 blockquote {
   margin: 8px 0; padding: 3px 0 3px 12px; border-left: 3px solid var(--rail);
@@ -371,23 +382,28 @@ def _index_row(deck):
 
 
 def index_section(title, indexes, name_of):
-    """유닛 색인. 코스트 순으로 묶고, 각 유닛마다 그 유닛을 쓰는 덱을 접어둔다."""
+    """유닛 색인. 코스트 순으로 묶어 칩 그리드로 늘어놓고, 칩 하나가 그 유닛을 쓰는
+    덱 목록을 접어둔다. 코스트 미상은 가장 덜 쓸모 있는 묶음이라 맨 뒤로 보낸다 —
+    묶는 로직 자체(0번 배정)는 indexes.build 몫이고, 여긴 표시 순서만 바꾼다.
+    """
     if not indexes.get("units"):
         return ""
     blocks = []
-    for cost in sorted(indexes["cost_groups"]):
+    for cost in sorted(indexes["cost_groups"], key=lambda c: (c == 0, c)):
         label = f"{cost}코스트" if cost else "코스트 미상"
-        items = []
+        chips = []
         for unit in indexes["cost_groups"][cost]:
             decks = indexes["units"][unit]
             rows = "".join(_index_row(deck) for deck in decks)
-            items.append(
-                f'<details><summary>{_e(name_of(unit))} '
-                f'<span class="muted">({len(decks)}덱)</span></summary>'
+            chips.append(
+                f'<details class="chip"><summary>'
+                f'<span class="chip-name">{_e(name_of(unit))}</span>'
+                f'<span class="chip-count">{len(decks)}덱</span></summary>'
                 f'<div class="scroll"><table><tr><th>덱</th><th class="n">브실골</th>'
                 f'<th class="n">Δ</th></tr>{rows}</table></div></details>'
             )
-        blocks.append(f'<h3 class="sub">{_e(label)}</h3>{"".join(items)}')
+        blocks.append(f'<h3 class="sub">{_e(label)}</h3>'
+                       f'<div class="chips">{"".join(chips)}</div>')
     return (f'<section><h2>{_e(title)}</h2>'
             f'<p class="muted">손에 들어온 유닛으로 덱을 찾는다.</p>'
             f'{"".join(blocks)}</section>')
@@ -503,8 +519,7 @@ KR 브론즈~골드 <span class="num">{context["sample_days"]}</span>일
 <section>
 <h2>{_e(heading)}</h2>
 <p class="muted">Δ = 브실골 평균등수 − 다이아+ 평균등수. 음수면 네 티어에서 더 잘 나오는 덱이다.
-평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.
-기대 경합은 8인 로비에서 나를 뺀 일곱 명 중 같은 덱을 잡는 사람 수다.</p>
+평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률도 같이 본다.</p>
 {decks_html}
 </section>
 {index_section("유닛으로 찾기", context.get("indexes") or {}, context.get("name_of", str))}
