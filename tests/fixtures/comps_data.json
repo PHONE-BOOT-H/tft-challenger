@@ -1,0 +1,4 @@
+{"tft_set": "TFTSet18", "cluster_id": 410, "results": {"data": {"cluster_details": {
+  "410000": {"Cluster": 410000, "units_string": "DA_18_A, DA_18_B, DA_18_E, DA_18_G, DA_18_H"},
+  "410001": {"Cluster": 410001, "units_string": "DA_18_X, DA_18_Y, DA_18_Z"}
+}}}}

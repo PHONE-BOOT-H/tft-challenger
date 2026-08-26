@@ -108,6 +108,8 @@ import json
 
 from .sources import DAILY
 
+MOVE_THRESHOLD = 0.05  # 평균등수가 이만큼은 움직여야 "변했다"고 본다. 표본 수가 매일 바뀌어 소수점 끝자리는 항상 흔들린다.
+
 
 def save(snapshot, day):
     """스냅샷을 data/daily/<day>.json으로 저장한다."""
@@ -128,7 +130,11 @@ def load_previous(before):
 
 
 def compare(previous, current, top_n=3):
-    """직전 스냅샷과 비교한다. 상위 top_n개 덱만 본다 — 꼬리는 노이즈다."""
+    """직전 스냅샷과 비교한다. 상위 top_n개 덱만 본다 — 꼬리는 노이즈다.
+
+    avp_low는 반올림하지 않은 값이라 표본 수가 바뀌면 소수점 끝자리가 늘 흔들린다.
+    그래서 moved는 단순 부등호가 아니라 MOVE_THRESHOLD 이상 변한 경우만 잡는다.
+    """
     empty = {"patch_changed": False, "from_patch": None,
              "to_patch": current.get("patch"), "moved": [], "entered": [], "left": []}
     if previous is None:
@@ -142,7 +148,8 @@ def compare(previous, current, top_n=3):
               "before": before[cluster]["avp_low"],
               "after": after[cluster]["avp_low"]}
              for cluster in after
-             if cluster in before and before[cluster]["avp_low"] != after[cluster]["avp_low"]]
+             if cluster in before
+             and abs(before[cluster]["avp_low"] - after[cluster]["avp_low"]) >= MOVE_THRESHOLD]
 
     return {
         "patch_changed": previous.get("patch") != current.get("patch"),
@@ -157,7 +164,7 @@ def compare(previous, current, top_n=3):
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 39 passed
+Expected: PASS — 40 passed
 
 - [ ] **Step 5: 커밋한다**
 
@@ -568,7 +575,7 @@ Riot Games가 승인하거나 후원한 프로젝트가 아니다.</p>
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 49 passed
+Expected: PASS — 49 passed (test_render.py 는 함수 9개다)
 
 - [ ] **Step 8: `src/build.py`를 쓴다**
 
@@ -887,7 +894,7 @@ from . import comps, fetch, indexes, names, patchdiff, paths, render, sources, v
 - [ ] **Step 6: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 54 passed
+Expected: PASS — 55 passed
 
 - [ ] **Step 7: 다시 렌더해서 색인이 붙었는지 본다**
 
@@ -1057,7 +1064,16 @@ def summarize(patch_text, deck_names, url):
     text = next((b.text for b in response.content if b.type == "text"), None)
     if not text:
         return None
-    return {"bullets": json.loads(text)["bullets"], "url": url}
+    # 응답이 스키마를 어겨도 페이지 전체를 죽이면 안 된다. 파싱까지 닫아둔다.
+    try:
+        bullets = json.loads(text)["bullets"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"패치노트 요약 파싱 실패: {exc}")
+        return None
+    if not isinstance(bullets, list) or not all(isinstance(b, str) for b in bullets):
+        print("패치노트 요약 형식이 예상과 다름")
+        return None
+    return {"bullets": bullets, "url": url}
 
 
 def maybe_summarize(diff, deck_names):
@@ -1104,7 +1120,7 @@ from . import comps, fetch, indexes, names, notes, patchdiff, paths, render, sou
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 58 passed
+Expected: PASS — 63 passed
 
 - [ ] **Step 8: 커밋한다**
 
@@ -1161,6 +1177,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 셋 게이트가 멈춘 날(exit 2)에는 조건부 스텝들이 skip 될 뿐 잡은 success 로 끝난다.
+    # 그래서 deploy 잡이 그대로 돌고, 업로드된 아티팩트가 없어 deploy-pages 가 에러난다.
+    # 종료 코드를 잡 output 으로 올려 deploy 가 그것까지 보게 한다.
+    outputs:
+      code: ${{ steps.build.outputs.code }}
     steps:
       - uses: actions/checkout@v4
 
@@ -1209,7 +1230,7 @@ jobs:
 
   deploy:
     needs: build
-    if: needs.build.result == 'success'
+    if: needs.build.result == 'success' && needs.build.outputs.code == '0'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

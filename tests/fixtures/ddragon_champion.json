@@ -1,0 +1,5 @@
+{"type": "champion", "version": "16.17.1", "data": {
+  "Maps/Shipping/Map22/Sets/TFTSet18/Shop/DA_18_Xayah": {"id": "DA_18_Xayah", "name": "자야", "tier": 1, "cost": 1},
+  "Maps/Shipping/Map22/Sets/TFTSet18/Shop/DA_Lux18_Light": {"id": "DA_Lux18_Light", "name": "럭스", "tier": 5, "cost": 5},
+  "Maps/Shipping/Map22/Sets/TFTSet17/Shop/TFT17_Aatrox": {"id": "TFT17_Aatrox", "name": "아트록스", "tier": 1, "cost": 1}
+}}

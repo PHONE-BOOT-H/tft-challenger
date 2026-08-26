@@ -11,3 +11,6 @@ data/raw/
 
 # SDD 진행 렛저 (스크래치)
 .superpowers/
+
+# 빌드 산출물 — Actions 가 매번 새로 만들어 Pages 로 올린다
+dist/
