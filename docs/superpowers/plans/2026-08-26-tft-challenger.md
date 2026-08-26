@@ -360,7 +360,7 @@ if __name__ == "__main__":
         print(f"{key:20} {size:>10,}자")
 ```
 
-- [ ] **Step 2: 실제로 돌려서 아홉 개가 다 떨어지는지 본다**
+- [ ] **Step 2: 실제로 돌려서 열 개가 다 떨어지는지 본다**
 
 Run: `python -m src.fetch`
 Expected: 열 줄이 찍히고 `data/raw/`에 파일 열 개. 크기 기준: `latest_cluster_id`는 63자 안팎, `early`는 80만자 이상, `comps_data`는 30만자 이상.
