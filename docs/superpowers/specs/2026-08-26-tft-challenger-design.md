@@ -234,7 +234,7 @@ op.gg 표는 16.1 이전 값을 서빙 중이라 쓰지 않는다.
 | **셋19가 ~2026-12-01. 전부 리셋.** 수명 14주 | 폐기 가능하게 설계. 유닛·특성·아이템 하드코딩 금지, 전부 ddragon 런타임 조회 |
 | 비공식 엔드포인트, 예고 없이 변경 | 마지막 성공분 캐시 + 시끄러운 실패 |
 | cluster_id 패치마다 회전 | `latest_cluster_id` 핀, 불일치 시 렌더 거부 |
-| 셋18 apiName이 `TFT18_*`가 아니라 **`DA_18_*`** | 조인 방어적으로. 매칭 실패 id는 버리지 말고 로그 |
+| 셋18 유닛 id 접두사가 불균일 | **id 접두사로 거르지 말 것.** ddragon 키 경로 `/Sets/TFTSet18/`로 필터한다 — `DA_18_*` 53개 외에 `DA_Lux18_*` `DA_Nidalee18_*` `DA_Vi18_*` `DA_Amumu18_*` 11개가 더 있어 접두사 필터는 이들을 놓친다(실측) |
 | CDragon이 셋 출시 직후 뒤처짐 | 유닛은 ddragon, 구간·조합식은 CDragon, 일주일 후 재확인 |
 | Actions 60일 무활동 시 비활성화 | 잡이 매일 JSON을 커밋하므로 활동으로 카운트 |
 | data/daily 누적 용량 | 원본은 gitignore, 축약본(~50KB)만 커밋. 14주 × 100커밋 ≈ 5MB |
@@ -320,3 +320,37 @@ robots.txt는 `/dashboard/` `/_app/` `/tools/tierlist_maker/*` 외 전체 허용
 `placement` `provisional`로 검색했다. **랭크 리셋 관련 항목이 없다.**
 유일한 언급은 셋17 골드 이상 달성 보상(승리의 반짝이)뿐이다.
 → 리셋 구간은 현재 알 수 없음. 며칠 뒤 재확인. 도구에는 표시하지 않는다.
+
+### ddragon 실측 (16.17.1) — 스펙 본문의 접두사 서술을 대체한다
+
+`tft-champion.json`의 `data` 키는 apiName이 아니라 경로다:
+`Maps/Shipping/Map22/Sets/TFTSet18/Shop/DA_18_Xayah`. apiName은 값의 `id` 필드에 있다.
+
+| 파일 | 상태 | 셋18 분량 |
+|---|---|---|
+| `tft-champion.json` | 200 | 경로 `/Sets/TFTSet18/` 로 **64개** (1코12·2코10·3코12·4코12·5코18) |
+| `tft-trait.json` | 200 | `id`가 `DA_`로 시작하는 **36개** |
+| `tft-item.json` | 200 | 전체 1,189개 중 `DA_*` 157개(대부분 상징). 기본 조합템은 셋 공용 id라 접두사로 거르면 안 된다 |
+| `tft-augments.json` | 200 | `DA_*` **253개**, 한글 `description` 포함 |
+| `tft-hero/queue/trap.json` | **403** | 존재하지 않는다. 요청하지 말 것 |
+
+셋18 유닛 id 접두사는 **균일하지 않다**: `DA_18_*` 53개 + `DA_Lux18_*` 3 + `DA_Nidalee18_*` 1
++ `DA_Vi18_*` 1 + `DA_Amumu18_*` 1 (+ 나머지 변형). 반드시 경로로 필터한다.
+
+**CommunityDragon은 셋18에 아직 못 쓴다.** `ko_kr.json`의 `sets["18"]`은 챔피언 19개짜리
+스텁이고 `name`이 `"Set10"`으로 잘못 붙어 있다(특성은 36개로 정상). 유닛은 ddragon만 쓰고,
+특성 발동 구간·아이템 조합식은 CDragon이 따라잡은 뒤 재확인한다.
+
+### early-comps 경로 역추적 (실측)
+
+- `units`는 리스트가 아니라 **딕셔너리** — 유닛 apiName이 키, 값은 `{"1-star": {...}, "2-star": {...}}`.
+  유닛 집합은 `set(comp["units"].keys())`.
+- `backwards_links[i]`의 길이가 이전 스테이지 덱 수와 정확히 일치한다
+  (stage-3→38, stage-4→46, stage-5→49). stage-2에는 `backwards_links`가 없다(뿌리).
+- 따라서 경로 복원은 stage-5 인덱스에서 `backwards_links` argmax를 세 번 타면 된다.
+
+### User-Agent
+
+정직한 봇 UA `tft-challenger/1.0 (+https://github.com/PHONE-BOOT-H/tft-challenger)`로
+MetaTFT·ddragon 모두 200을 받는다(실측). 브라우저 위장은 하지 않는다 — 공개 repo에서
+할 짓이 아니고, 할 필요도 없다.
