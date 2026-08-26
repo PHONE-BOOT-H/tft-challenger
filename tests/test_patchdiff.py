@@ -1,4 +1,4 @@
-from src.patchdiff import compare, load_previous, save
+from src.patchdiff import compare, load_previous, save, MOVE_THRESHOLD
 
 
 def _snap(patch, decks):
@@ -39,8 +39,12 @@ def test_임계값_미만_변화는_무시한다():
 
 
 def test_임계값과_같으면_변화로_잡는다():
-    previous = _snap("18.1", [("410000", "A덱", 4.10)])
-    current = _snap("18.2", [("410000", "A덱", 4.15)])
+    # 부동소수점에서 정확히 임계값과 같은 차이를 위해 0.0부터 시작
+    # 0.0 + MOVE_THRESHOLD로 계산하면 >= 비교는 통과하고 > 비교는 실패함
+    before = 0.0
+    after = before + MOVE_THRESHOLD
+    previous = _snap("18.1", [("410000", "A덱", before)])
+    current = _snap("18.2", [("410000", "A덱", after)])
     moved = compare(previous, current)["moved"]
     assert len(moved) == 1
     assert moved[0]["cluster"] == "410000"
