@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+node_modules/
+outputs/
+*.csv
+
+# 원본 응답은 커밋 안 함 (용량). 축약본 data/daily/ 만 커밋한다 —
+# 그게 패치별 메타 변천사이고, 패치 diff 기능이 여기 물려 있다.
+data/raw/
