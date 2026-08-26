@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 
-from . import comps, fetch, indexes, names, patchdiff, paths, render, sources, validate
+from . import comps, fetch, indexes, names, notes, patchdiff, paths, render, sources, validate
 
 KST = timezone(timedelta(hours=9))
 
@@ -61,6 +61,7 @@ def build_context(payloads, cfg, now):
     day = now.strftime("%Y-%m-%d")
     diff = patchdiff.compare(patchdiff.load_previous(before=day), snapshot, cfg["top_n"])
     patchdiff.save(snapshot, day)
+    summary = notes.maybe_summarize(diff, [deck["name"] for deck in decks])
 
     all_rows = [dict(row, name=" · ".join(
         names.ko(index, unit) for unit in sorted(final.get(row["cluster"], set()))[:3]) or row["cluster"])
@@ -78,7 +79,7 @@ def build_context(payloads, cfg, now):
         "diff": diff,
         "fundamentals": json.loads(
             (sources.ROOT / "data" / "fundamentals.json").read_text(encoding="utf-8")),
-        "notes": None,
+        "notes": summary,
         "indexes": index_data,
         "name_of": lambda unit: names.ko(index, unit),
     }

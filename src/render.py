@@ -188,7 +188,7 @@ def _fundamentals(data):
     return "".join(blocks)
 
 
-def _diff_banner(diff):
+def _diff_banner(diff, summary):
     if not diff.get("patch_changed"):
         return ""
     lines = []
@@ -200,8 +200,13 @@ def _diff_banner(diff):
     for row in diff.get("left", []):
         lines.append(f'<li>{_e(row.get("name"))} 이탈</li>')
     body = f"<ul>{''.join(lines)}</ul>" if lines else "<p>상위 덱 순위는 그대로다.</p>"
+    official = ""
+    if summary and summary.get("bullets"):
+        items = "".join(f"<li>{_e(bullet)}</li>" for bullet in summary["bullets"])
+        official = (f'<p class="muted">공식 노트에서 네 덱에 걸리는 항목</p><ul>{items}</ul>'
+                    f'<p class="muted"><a href="{_e(summary["url"])}">패치노트 원문</a></p>')
     return (f'<div class="card"><h3>패치 {_e(diff["to_patch"])} 적용됨</h3>'
-            f'<div class="meta">직전 {_e(diff["from_patch"])} 대비</div>{body}'
+            f'<div class="meta">직전 {_e(diff["from_patch"])} 대비</div>{body}{official}'
             '<p class="muted">패치 직후 3~5일은 데이터가 안 굳는다. '
             '이 숫자만 보고 덱을 버리지 마라.</p></div>')
 
@@ -231,7 +236,7 @@ def page(context):
 KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 {_e(context["generated_at"])} 기준</p>
 {stale}
-{_diff_banner(context["diff"])}
+{_diff_banner(context["diff"], context.get("notes"))}
 <h2>이번 패치 너의 {len(context["decks"])}덱</h2>
 <p class="muted">Δ = 브실골 평균등수 − 다이아+ 평균등수. 음수면 네 티어에서 더 잘 나오는 덱이다.
 평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.</p>
