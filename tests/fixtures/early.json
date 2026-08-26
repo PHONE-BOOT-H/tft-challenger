@@ -8,9 +8,11 @@
     {"cluster": "1", "units": {"DA_18_C": {}, "DA_18_D": {}, "DA_18_F": {}}, "stats": {"final_place_avg": 4.6}, "backwards_links": [5.0, 95.0]}
   ]},
   "stage-4": {"comps": [
-    {"cluster": "0", "units": {"DA_18_A": {}, "DA_18_B": {}, "DA_18_E": {}, "DA_18_G": {}}, "stats": {"final_place_avg": 3.9}, "backwards_links": [80.0, 20.0]}
+    {"cluster": "0", "units": {"DA_18_A": {}, "DA_18_B": {}, "DA_18_E": {}, "DA_18_G": {}}, "stats": {"final_place_avg": 3.9}, "backwards_links": [80.0, 20.0]},
+    {"cluster": "1", "units": {"DA_18_C": {}, "DA_18_D": {}, "DA_18_F": {}, "DA_18_I": {}}, "stats": {"final_place_avg": 3.6}, "backwards_links": [20.0, 80.0]}
   ]},
   "stage-5": {"comps": [
-    {"cluster": "0", "units": {"DA_18_A": {}, "DA_18_B": {}, "DA_18_E": {}, "DA_18_G": {}, "DA_18_H": {}}, "stats": {"final_place_avg": 3.7}, "backwards_links": [100.0]}
+    {"cluster": "0", "units": {"DA_18_A": {}, "DA_18_B": {}, "DA_18_E": {}, "DA_18_G": {}, "DA_18_H": {}}, "stats": {"final_place_avg": 3.7}, "backwards_links": [100.0]},
+    {"cluster": "1", "units": {"DA_18_C": {}, "DA_18_D": {}, "DA_18_F": {}, "DA_18_I": {}, "DA_18_J": {}}, "stats": {"final_place_avg": 3.5}, "backwards_links": [30.0, 70.0]}
   ]}
 }}

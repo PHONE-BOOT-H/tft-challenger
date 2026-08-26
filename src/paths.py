@@ -36,12 +36,21 @@ def stage_units(early, stage):
 def match_stage5(final, early, threshold=0.5):
     """최종 덱 cluster -> stage-5 인덱스. 임계값 미달은 넣지 않는다."""
     stage5 = stage_units(early, "stage-5")
+    stage5_comps = early["comps_overview"]["stage-5"]["comps"]
     matched = {}
     for cluster, units in final.items():
-        scores = [(jaccard(units, board), index) for index, board in enumerate(stage5)]
-        if not scores:
+        # 동점 처리(우연이 아니라 결정): Jaccard가 같으면 평균 등수
+        # (final_place_avg, 낮을수록 좋음)가 나은 쪽을 고르고, 그마저 같거나
+        # 없으면(없으면 최하 취급) 인덱스가 낮은 쪽을 골라 재실행해도
+        # 항상 같은 결과가 나오게 한다.
+        scored = []
+        for index, board in enumerate(stage5):
+            avp = stage5_comps[index].get("stats", {}).get("final_place_avg")
+            better_avp = -(avp if avp is not None else float("inf"))
+            scored.append((jaccard(units, board), better_avp, -index, index))
+        if not scored:
             continue
-        best_score, best_index = max(scores)
+        best_score, _, _, best_index = max(scored)
         if best_score >= threshold:
             matched[cluster] = best_index
     return matched
