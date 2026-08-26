@@ -4,5 +4,7 @@
   "low_rank": "BRONZE,SILVER,GOLD",
   "high_rank": "DIAMOND,MASTER,GRANDMASTER,CHALLENGER",
   "days": 3,
-  "ddragon_set_path": "/Sets/TFTSet18/"
+  "ddragon_set_path": "/Sets/TFTSet18/",
+  "min_games": 200,
+  "top_n": 3
 }
