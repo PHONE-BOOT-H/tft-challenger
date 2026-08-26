@@ -140,6 +140,35 @@ def _deck_card(deck):
 </div>"""
 
 
+def _index_row(deck):
+    """색인 표의 한 줄. Δ가 없는 덱은 칸을 비운다."""
+    delta = "" if deck["delta"] is None else f'{deck["delta"]:+.2f}'
+    return (f'<tr><td>{_e(deck["name"])}</td>'
+            f'<td class="n">{deck["avp_low"]:.2f}</td>'
+            f'<td class="n">{_e(delta)}</td></tr>')
+
+
+def index_section(title, indexes, name_of):
+    """유닛 색인. 코스트 순으로 묶고, 각 유닛마다 그 유닛을 쓰는 덱을 접어둔다."""
+    if not indexes.get("units"):
+        return ""
+    blocks = []
+    for cost in sorted(indexes["cost_groups"]):
+        label = f"{cost}코스트" if cost else "코스트 미상"
+        items = []
+        for unit in indexes["cost_groups"][cost]:
+            decks = indexes["units"][unit]
+            rows = "".join(_index_row(deck) for deck in decks)
+            items.append(
+                f'<details><summary>{_e(name_of(unit))} '
+                f'<span class="muted">({len(decks)}덱)</span></summary>'
+                f'<div class="scroll"><table><tr><th>덱</th><th class="n">브실골</th>'
+                f'<th class="n">Δ</th></tr>{rows}</table></div></details>'
+            )
+        blocks.append(f'<h3>{_e(label)}</h3>{"".join(items)}')
+    return f'<h2>{_e(title)}</h2><p class="muted">손에 들어온 유닛으로 덱을 찾는다.</p>' + "".join(blocks)
+
+
 def _fundamentals(data):
     blocks = []
     for section in data.get("sections", []):
@@ -207,6 +236,7 @@ KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 <p class="muted">Δ = 브실골 평균등수 − 다이아+ 평균등수. 음수면 네 티어에서 더 잘 나오는 덱이다.
 평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.</p>
 {decks_html}
+{index_section("유닛으로 찾기", context.get("indexes") or {}, context.get("name_of", str))}
 {_fundamentals(context["fundamentals"])}
 <h2>출처</h2>
 <p class="muted">덱 통계·단계 경로: MetaTFT · 한글 이름표: Riot Data Dragon<br>

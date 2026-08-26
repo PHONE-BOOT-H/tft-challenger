@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 
-from . import comps, fetch, names, patchdiff, paths, render, sources, validate
+from . import comps, fetch, indexes, names, patchdiff, paths, render, sources, validate
 
 KST = timezone(timedelta(hours=9))
 
@@ -62,6 +62,11 @@ def build_context(payloads, cfg, now):
     diff = patchdiff.compare(patchdiff.load_previous(before=day), snapshot, cfg["top_n"])
     patchdiff.save(snapshot, day)
 
+    all_rows = [dict(row, name=" · ".join(
+        names.ko(index, unit) for unit in sorted(final.get(row["cluster"], set()))[:3]) or row["cluster"])
+        for row in rows]
+    index_data = indexes.build(all_rows, final, names.unit_costs(payloads["champion"], cfg["ddragon_set_path"]))
+
     return {
         "set": payloads["latest_cluster_id"]["tft_set"],
         "patch": patch,
@@ -74,6 +79,8 @@ def build_context(payloads, cfg, now):
         "fundamentals": json.loads(
             (sources.ROOT / "data" / "fundamentals.json").read_text(encoding="utf-8")),
         "notes": None,
+        "indexes": index_data,
+        "name_of": lambda unit: names.ko(index, unit),
     }
 
 
