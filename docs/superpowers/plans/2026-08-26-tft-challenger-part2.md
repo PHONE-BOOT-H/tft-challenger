@@ -157,7 +157,7 @@ def compare(previous, current, top_n=3):
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 39 passed
+Expected: PASS — 40 passed
 
 - [ ] **Step 5: 커밋한다**
 
@@ -568,7 +568,7 @@ Riot Games가 승인하거나 후원한 프로젝트가 아니다.</p>
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 49 passed
+Expected: PASS — 50 passed
 
 - [ ] **Step 8: `src/build.py`를 쓴다**
 
@@ -887,7 +887,7 @@ from . import comps, fetch, indexes, names, patchdiff, paths, render, sources, v
 - [ ] **Step 6: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 54 passed
+Expected: PASS — 55 passed
 
 - [ ] **Step 7: 다시 렌더해서 색인이 붙었는지 본다**
 
@@ -1104,7 +1104,7 @@ from . import comps, fetch, indexes, names, notes, patchdiff, paths, render, sou
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 58 passed
+Expected: PASS — 59 passed
 
 - [ ] **Step 8: 커밋한다**
 

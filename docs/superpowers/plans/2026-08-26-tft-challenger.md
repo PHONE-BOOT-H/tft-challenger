@@ -135,6 +135,14 @@ def test_셋_필드가_없으면_거부한다():
         check_set(payloads, expected="TFTSet18")
 
 
+def test_페이로드가_통째로_없으면_거부한다():
+    # 값이 틀린 것만 잡고 키가 빠진 건 통과시키면 게이트에 우회로가 생긴다.
+    payloads = _payloads()
+    del payloads["early"]
+    with pytest.raises(SetMismatch):
+        check_set(payloads, expected="TFTSet18")
+
+
 def test_cluster_id가_맞으면_그_값을_돌려준다():
     assert pin_cluster(_payloads(cluster_id=410, data_id=410)) == 410
 
@@ -270,11 +278,16 @@ class ClusterMismatch(RuntimeError):
 
 
 def check_set(payloads, expected):
-    """받아온 페이로드 전부가 기대한 셋인지 확인한다. 하나라도 어긋나면 예외."""
+    """받아온 페이로드 전부가 기대한 셋인지 확인한다. 하나라도 어긋나면 예외.
+
+    키가 아예 없는 것도 불일치로 친다. 게이트에 우회로를 남기면 안 된다.
+    """
+    missing = [key for key in _SET_SOURCES if key not in payloads]
+    if missing:
+        raise SetMismatch(f"페이로드 누락: {missing}")
+
     bad = []
     for key in _SET_SOURCES:
-        if key not in payloads:
-            continue
         got = payloads[key].get("tft_set")
         if got != expected:
             bad.append(f"{key}={got!r}")
@@ -294,7 +307,7 @@ def pin_cluster(payloads):
 - [ ] **Step 6: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 9 passed
+Expected: PASS — 10 passed
 
 - [ ] **Step 7: 커밋한다**
 
@@ -572,7 +585,7 @@ def merge_delta(low, low_total, high):
 - [ ] **Step 5: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 16 passed
+Expected: PASS — 17 passed
 
 - [ ] **Step 6: 실제 데이터로 눈으로 확인한다**
 
@@ -759,7 +772,7 @@ def ko(index, api_name):
 - [ ] **Step 5: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 23 passed
+Expected: PASS — 24 passed
 
 - [ ] **Step 6: 실제 ddragon으로 셋18 로스터를 세어본다**
 
@@ -989,7 +1002,7 @@ def route(early, stage5_index):
 - [ ] **Step 5: 테스트가 통과하는지 확인한다**
 
 Run: `python -m pytest tests/ -q`
-Expected: PASS — 32 passed
+Expected: PASS — 33 passed
 
 - [ ] **Step 6: 실제 데이터로 매칭률을 잰다**
 
