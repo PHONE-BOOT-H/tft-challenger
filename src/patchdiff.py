@@ -9,6 +9,8 @@ import json
 
 from .sources import DAILY
 
+MOVE_THRESHOLD = 0.05  # 평균등수가 이만큼은 움직여야 "변했다"고 본다. 표본 수가 매일 바뀌어 소수점 끝자리는 항상 흔들린다.
+
 
 def save(snapshot, day):
     """스냅샷을 data/daily/<day>.json으로 저장한다."""
@@ -29,7 +31,11 @@ def load_previous(before):
 
 
 def compare(previous, current, top_n=3):
-    """직전 스냅샷과 비교한다. 상위 top_n개 덱만 본다 — 꼬리는 노이즈다."""
+    """직전 스냅샷과 비교한다. 상위 top_n개 덱만 본다 — 꼬리는 노이즈다.
+
+    avp_low는 반올림하지 않은 값이라 표본 수가 바뀌면 소수점 끝자리가 늘 흔들린다.
+    그래서 moved는 단순 부등호가 아니라 MOVE_THRESHOLD 이상 변한 경우만 잡는다.
+    """
     empty = {"patch_changed": False, "from_patch": None,
              "to_patch": current.get("patch"), "moved": [], "entered": [], "left": []}
     if previous is None:
@@ -43,7 +49,8 @@ def compare(previous, current, top_n=3):
               "before": before[cluster]["avp_low"],
               "after": after[cluster]["avp_low"]}
              for cluster in after
-             if cluster in before and before[cluster]["avp_low"] != after[cluster]["avp_low"]]
+             if cluster in before
+             and abs(before[cluster]["avp_low"] - after[cluster]["avp_low"]) >= MOVE_THRESHOLD]
 
     return {
         "patch_changed": previous.get("patch") != current.get("patch"),

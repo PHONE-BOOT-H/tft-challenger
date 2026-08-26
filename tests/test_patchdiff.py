@@ -32,6 +32,20 @@ def test_평균등수_변화를_잡는다():
     assert moved[0]["after"] == 4.55
 
 
+def test_임계값_미만_변화는_무시한다():
+    previous = _snap("18.1", [("410000", "A덱", 4.10)])
+    current = _snap("18.2", [("410000", "A덱", 4.11)])
+    assert compare(previous, current)["moved"] == []
+
+
+def test_임계값과_같으면_변화로_잡는다():
+    previous = _snap("18.1", [("410000", "A덱", 4.10)])
+    current = _snap("18.2", [("410000", "A덱", 4.15)])
+    moved = compare(previous, current)["moved"]
+    assert len(moved) == 1
+    assert moved[0]["cluster"] == "410000"
+
+
 def test_새로_들어오고_빠진_덱을_잡는다():
     previous = _snap("18.1", [("410000", "A덱", 4.1), ("410001", "B덱", 4.3)])
     current = _snap("18.2", [("410000", "A덱", 4.1), ("410002", "C덱", 3.9)])
