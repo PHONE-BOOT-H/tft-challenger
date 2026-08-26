@@ -219,6 +219,19 @@ def _fundamentals(data):
     return "".join(blocks)
 
 
+def _gate_stop_card(message):
+    """게이트 정지 안내 — 존재하면 페이지에서 가장 먼저 보인다.
+
+    아래 기본기 화면은 이 문제와 무관하게 그대로 유효하다는 것을 분명히 한다.
+    """
+    if not message:
+        return ""
+    return (f'<div class="card"><h3>덱 통계 없음</h3>'
+            f'<p class="muted">{_e(message)} 아래 기본기 정보는 이 문제와 무관하니 '
+            '그대로 봐도 된다. 집계가 이번 셋으로 넘어오면 다음 갱신 때 자동으로 채워진다.'
+            '</p></div>')
+
+
 def _diff_banner(diff, summary):
     if not diff.get("patch_changed"):
         return ""
@@ -274,6 +287,7 @@ def page(context):
 <p class="meta">{_e(context["set"])} · {_patch_text(context["patch"])} ·
 KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 {_e(context["generated_at"])} 기준</p>
+{_gate_stop_card(context.get("gate_stop"))}
 {stale}
 {_diff_banner(context["diff"], context.get("notes"))}
 <h2>{_e(heading)}</h2>

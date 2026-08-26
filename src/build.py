@@ -25,6 +25,38 @@ def _patch_label(payloads):
     return str(payloads["latest_cluster_id"]["cluster_id"])
 
 
+def _base_context(cfg, now):
+    """정상 경로와 게이트정지 경로가 공유하는 뼈대 — 시각 표기와 기본기.
+
+    기본기(data/fundamentals.json)는 집계 사이트와 무관하게 항상 존재해야 한다.
+    """
+    return {
+        "generated_at": now.strftime("%Y-%m-%d %H:%M KST"),
+        "generated_iso": now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sample_days": cfg["days"],
+        "stale_hours": 0,
+        "fundamentals": json.loads(
+            (sources.ROOT / "data" / "fundamentals.json").read_text(encoding="utf-8")),
+    }
+
+
+def gate_stop_context(cfg, now, exc):
+    """게이트가 막았을 때 렌더할 최소 컨텍스트 — 덱 통계 없이 기본기만.
+
+    payloads를 신뢰할 수 없는 상태이므로 어떤 계산도 하지 않는다.
+    diff는 빈 딕셔너리로 둔다 — _diff_banner는 patch_changed가 없으면 바로 빈 문자열을 낸다.
+    """
+    return {
+        **_base_context(cfg, now),
+        "set": cfg["expected_set"],
+        "patch": None,
+        "total_games": 0,
+        "decks": [],
+        "diff": {},
+        "gate_stop": (f"집계 사이트가 아직 이번 셋 데이터를 내주지 않는다 — {exc}."),
+    }
+
+
 def build_context(payloads, cfg, now):
     """받아온 원본에서 렌더용 컨텍스트를 만든다."""
     index = names.build_index(
@@ -77,22 +109,22 @@ def build_context(payloads, cfg, now):
     index_data = indexes.build(all_rows, final, names.unit_costs(payloads["champion"], cfg["ddragon_set_path"]))
 
     return {
+        **_base_context(cfg, now),
         "set": tft_set,
         "patch": patch,
-        "generated_at": now.strftime("%Y-%m-%d %H:%M KST"),
-        # 페이지가 스스로 나이를 계산할 수 있게 기계가 읽는 형태로도 같이 내보낸다.
-        "generated_iso": now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "total_games": total,
-        "sample_days": cfg["days"],
-        "stale_hours": 0,
         "decks": decks,
         "diff": diff,
-        "fundamentals": json.loads(
-            (sources.ROOT / "data" / "fundamentals.json").read_text(encoding="utf-8")),
         "notes": summary,
         "indexes": index_data,
         "name_of": lambda unit: names.ko(index, unit),
+        "gate_stop": None,
     }
+
+
+def _render_to_dist(context):
+    sources.DIST.mkdir(parents=True, exist_ok=True)
+    (sources.DIST / "index.html").write_text(render.page(context), encoding="utf-8")
 
 
 def main():
@@ -104,13 +136,14 @@ def main():
         validate.check_set(payloads, cfg["expected_set"])
         validate.pin_cluster(payloads)
     except (validate.SetMismatch, validate.ClusterMismatch) as exc:
-        # 조용히 옛날 데이터를 내놓느니 시끄럽게 죽는다.
+        # 조용히 옛날 데이터를 내놓느니 시끄럽게 죽는다 — 그래도 기본기 화면은 띄운다.
         print(f"게이트 정지: {exc}", file=sys.stderr)
+        _render_to_dist(gate_stop_context(cfg, now, exc))
+        print("게이트 정지 — 기본기만 렌더, 스냅샷은 남기지 않는다", file=sys.stderr)
         return 2
 
     context = build_context(payloads, cfg, now)
-    sources.DIST.mkdir(parents=True, exist_ok=True)
-    (sources.DIST / "index.html").write_text(render.page(context), encoding="utf-8")
+    _render_to_dist(context)
     print(f"렌더 완료: 덱 {len(context['decks'])}개, 표본 {context['total_games']:,}판")
     return 0
 
