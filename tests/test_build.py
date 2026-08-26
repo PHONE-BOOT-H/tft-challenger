@@ -8,13 +8,14 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from src import build, patchdiff, paths, render
+from src import build, patchdiff, paths, render, validate
 
 FIXTURES = Path(__file__).parent / "fixtures"
 KST = timezone(timedelta(hours=9))
 NOW = datetime(2026, 9, 1, 5, 0, tzinfo=KST)
 
-CFG = {"ddragon_set_path": "/Sets/TFTSet18/", "min_games": 50, "top_n": 3, "days": 3}
+CFG = {"ddragon_set_path": "/Sets/TFTSet18/", "min_games": 50, "top_n": 3, "days": 3,
+       "expected_set": "TFTSet18"}
 
 
 def _load(name):
@@ -86,3 +87,21 @@ def test_표본이_0이면_덱도_0이고_페이지는_그려진다(tmp_path, mo
 def test_이름_변환기가_컨텍스트에_실려_렌더까지_간다(tmp_path, monkeypatch):
     context = _build(monkeypatch, tmp_path)
     assert callable(context["name_of"]) and "유닛으로 찾기" in render.page(context)
+
+
+def test_게이트_정지_컨텍스트는_덱이_비고_사유가_실린다(tmp_path, monkeypatch):
+    """게이트가 막으면 payloads를 못 믿으니 계산 없이 기본기만 실은 컨텍스트를 만든다."""
+    monkeypatch.setattr(patchdiff, "DAILY", tmp_path)
+    exc = validate.SetMismatch("셋 불일치 (기대 'TFTSet18'): latest_cluster_id='TFTSet17'")
+    context = build.gate_stop_context(CFG, NOW, exc)
+    assert context["decks"] == []
+    assert "TFTSet17" in context["gate_stop"]
+    assert "덱 통계 없음" in render.page(context)  # 예외 없이 렌더된다
+
+
+def test_게이트_정지_경로는_스냅샷을_남기지_않는다(tmp_path, monkeypatch):
+    """게이트정지 컨텍스트는 patchdiff.save를 아예 호출하지 않는다 — 다음 diff를 망가뜨리면 안 된다."""
+    monkeypatch.setattr(patchdiff, "DAILY", tmp_path)
+    exc = validate.ClusterMismatch("cluster_id 불일치: latest=1 comps_data=2")
+    build.gate_stop_context(CFG, NOW, exc)
+    assert list(tmp_path.iterdir()) == []

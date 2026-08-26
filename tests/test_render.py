@@ -18,6 +18,7 @@ def _context(**overrides):
                  "moved": [], "entered": [], "left": []},
         "fundamentals": {"sections": []},
         "notes": None,
+        "gate_stop": None,
     }
     context.update(overrides)
     return context
@@ -112,3 +113,18 @@ def test_덱이_없으면_0덱이라고_쓰지_않는다():
     html = page(_context(decks=[]))
     assert "0덱" not in html
     assert "추천할 덱이 아직 없다" in html
+
+
+def test_게이트_정지_메시지가_맨_위에_뜨고_이스케이프된다():
+    message = '셋 불일치 (기대 "TFTSet18"): latest_cluster_id=<TFTSet17>'
+    html = page(_context(decks=[], gate_stop=message))
+    assert "덱 통계 없음" in html
+    assert "&lt;TFTSet17&gt;" in html
+    assert "<TFTSet17>" not in html
+    # 게이트 정지 카드가 다른 어떤 안내보다도 먼저 나와야 한다.
+    assert html.index("덱 통계 없음") < html.index("추천할 덱이 아직 없다")
+
+
+def test_게이트_정지가_없으면_카드가_안_뜬다():
+    html = page(_context(gate_stop=None))
+    assert "덱 통계 없음" not in html
