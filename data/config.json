@@ -1,0 +1,8 @@
+{
+  "expected_set": "TFTSet18",
+  "server": "KR",
+  "low_rank": "BRONZE,SILVER,GOLD",
+  "high_rank": "DIAMOND,MASTER,GRANDMASTER,CHALLENGER",
+  "days": 3,
+  "ddragon_set_path": "/Sets/TFTSet18/"
+}
