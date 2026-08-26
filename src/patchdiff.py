@@ -35,10 +35,13 @@ def compare(previous, current, top_n=3):
 
     avp_low는 반올림하지 않은 값이라 표본 수가 바뀌면 소수점 끝자리가 늘 흔들린다.
     그래서 moved는 단순 부등호가 아니라 MOVE_THRESHOLD 이상 변한 경우만 잡는다.
+
+    셋이 바뀌었으면 직전이 없는 것으로 친다. 클러스터 공간 자체가 갈리므로
+    셋 경계를 넘어 비교하면 새 셋 첫 빌드가 전 덱을 "새로 진입"이라고 외친다.
     """
     empty = {"patch_changed": False, "from_patch": None,
              "to_patch": current.get("patch"), "moved": [], "entered": [], "left": []}
-    if previous is None:
+    if previous is None or previous.get("set") != current.get("set"):
         return empty
 
     before = {d["cluster"]: d for d in previous.get("decks", [])[:top_n]}

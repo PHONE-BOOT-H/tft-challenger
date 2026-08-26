@@ -50,9 +50,9 @@ def test_픽률과_기대_경합인원을_계산한다():
     low, low_total = parse_stats(_load("comps_stats_low"))
     high, _ = parse_stats(_load("comps_stats_high"))
     merged = {row["cluster"]: row for row in merge_delta(low, low_total, high)}
-    # 100판 / 전체 1000판 = 10%, 8인 로비 기대 0.8명
+    # 100판 / 전체 1000판 = 10%. 경합은 나를 뺀 7명 기준이므로 0.7명이다.
     assert merged["410000"]["pick_rate"] == pytest.approx(0.10)
-    assert merged["410000"]["expected_contest"] == pytest.approx(0.8)
+    assert merged["410000"]["expected_contest"] == pytest.approx(0.7)
 
 
 def test_고티어에_없는_덱은_델타가_None이고_맨뒤로_간다():

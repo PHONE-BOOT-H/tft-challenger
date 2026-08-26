@@ -48,3 +48,12 @@ def test_cluster_id가_맞으면_그_값을_돌려준다():
 def test_cluster_id가_어긋나면_거부한다():
     with pytest.raises(ClusterMismatch):
         pin_cluster(_payloads(cluster_id=410, data_id=409))
+
+
+def test_응답이_배열이면_게이트_메시지로_거부한다():
+    # .get을 그냥 부르면 AttributeError 트레이스백이 나가고 게이트 메시지가 묻힌다.
+    payloads = _payloads()
+    payloads["early"] = [{"tft_set": "TFTSet18"}]
+    with pytest.raises(SetMismatch) as err:
+        check_set(payloads, expected="TFTSet18")
+    assert "early" in str(err.value)

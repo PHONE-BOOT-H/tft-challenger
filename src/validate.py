@@ -23,7 +23,11 @@ def check_set(payloads, expected):
 
     bad = []
     for key in _SET_SOURCES:
-        got = payloads[key].get("tft_set")
+        payload = payloads[key]
+        if not isinstance(payload, dict):
+            # 배열이 오면 .get에서 AttributeError로 터진다 — 게이트 메시지가 아니라 트레이스백이 나간다.
+            raise SetMismatch(f"{key} 응답이 객체가 아니다: {type(payload).__name__}")
+        got = payload.get("tft_set")
         if got != expected:
             bad.append(f"{key}={got!r}")
     if bad:

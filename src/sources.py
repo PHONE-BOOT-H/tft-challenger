@@ -23,7 +23,13 @@ class FetchError(RuntimeError):
 
 
 def load_config():
-    return json.loads((ROOT / "data" / "config.json").read_text(encoding="utf-8"))
+    cfg = json.loads((ROOT / "data" / "config.json").read_text(encoding="utf-8"))
+    # 셋 번호가 두 군데 나뉘어 있다. 어긋나면 게이트는 통과하는데 유닛 이름이 전부
+    # 영어 id로 떨어진다 — 조용하고 전면적이라 제일 나쁜 종류의 실수다.
+    if f"/{cfg['expected_set']}/" not in cfg["ddragon_set_path"]:
+        raise ValueError(f"설정 셋 불일치: expected_set={cfg['expected_set']!r}인데 "
+                         f"ddragon_set_path={cfg['ddragon_set_path']!r}")
+    return cfg
 
 
 def get_json(url, timeout=40, retries=2):

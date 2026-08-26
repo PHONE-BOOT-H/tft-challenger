@@ -72,8 +72,11 @@ def test_오래된_데이터면_경고_배지가_뜬다():
 
 
 def test_라이트와_다크_토큰이_모두_정의된다():
+    # 색 토큰은 dataviz 검증을 통과한 고정값이다. 여섯 쌍 중 하나만 바뀌어도 여기서 걸려야 한다.
     html = page(_context())
     assert "#fcfcfb" in html and "#1a1a19" in html
+    assert all(token in html for token in
+               ("#2a78d6", "#e34948", "#52514e", "#3987e5", "#e66767", "#c3c2b7"))
     assert 'prefers-color-scheme: dark' in html
     assert '[data-theme="dark"]' in html
 
@@ -103,3 +106,9 @@ def test_배너도_클러스터_id를_패치라고_부르지_않는다():
     assert "집계 회차가 바뀜" in html
     assert "직전 집계 회차 409 대비" in html
     assert "패치 410" not in html
+
+
+def test_덱이_없으면_0덱이라고_쓰지_않는다():
+    html = page(_context(decks=[]))
+    assert "0덱" not in html
+    assert "추천할 덱이 아직 없다" in html

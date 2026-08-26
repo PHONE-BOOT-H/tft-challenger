@@ -40,12 +40,18 @@ def build_context(payloads, cfg, now):
 
     final = paths.final_units(payloads["comps_data"])
     matched = paths.match_stage5(final, payloads["early"])
+    # 매칭이 무너지면(상류 스키마 변경 등) 경로가 조용히 사라진다. 비율을 남겨 눈에 띄게 한다.
+    print(f"경로 매칭 {len(matched)}/{len(final)}")
+
+    def deck_name(cluster):
+        """상위 세 유닛의 한글 이름. 이름을 못 만들면 내부 id 대신 이름 미상."""
+        units = sorted(final.get(cluster, set()))[:3]
+        return " · ".join(names.ko(index, unit) for unit in units) or "이름 미상"
 
     decks = []
     for row in rows[:cfg["top_n"]]:
-        units = sorted(final.get(row["cluster"], set()))
         row = dict(row)
-        row["name"] = " · ".join(names.ko(index, unit) for unit in units[:3]) or row["cluster"]
+        row["name"] = deck_name(row["cluster"])
         row["route"] = []
         if row["cluster"] in matched:
             for step in paths.route(payloads["early"], matched[row["cluster"]]):
@@ -57,7 +63,9 @@ def build_context(payloads, cfg, now):
         decks.append(row)
 
     patch = _patch_label(payloads)
-    snapshot = {"patch": patch, "decks": [
+    tft_set = payloads["latest_cluster_id"]["tft_set"]
+    # 셋을 같이 넣는다. 셋 경계를 넘어 diff하면 새 셋 첫 빌드가 전 덱을 "새로 진입"이라 외친다.
+    snapshot = {"patch": patch, "set": tft_set, "decks": [
         {"cluster": d["cluster"], "name": d["name"], "avp_low": d["avp_low"]} for d in decks]}
 
     day = now.strftime("%Y-%m-%d")
@@ -65,13 +73,11 @@ def build_context(payloads, cfg, now):
     patchdiff.save(snapshot, day)
     summary = notes.maybe_summarize(diff, [deck["name"] for deck in decks])
 
-    all_rows = [dict(row, name=" · ".join(
-        names.ko(index, unit) for unit in sorted(final.get(row["cluster"], set()))[:3]) or row["cluster"])
-        for row in rows]
+    all_rows = [dict(row, name=deck_name(row["cluster"])) for row in rows]
     index_data = indexes.build(all_rows, final, names.unit_costs(payloads["champion"], cfg["ddragon_set_path"]))
 
     return {
-        "set": payloads["latest_cluster_id"]["tft_set"],
+        "set": tft_set,
         "patch": patch,
         "generated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         # 페이지가 스스로 나이를 계산할 수 있게 기계가 읽는 형태로도 같이 내보낸다.

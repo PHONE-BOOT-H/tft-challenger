@@ -93,8 +93,11 @@ def dist_bars(dist):
     """등수분포 막대 여덟 개. 탑4는 파랑, 하위4는 빨강.
 
     색만으로 뜻을 전달하지 않는다 — 각 막대에 aria-label과 title로 값을 붙인다.
+    분모는 카드마다 제각각이면 안 된다 — 한 화면에 세 장이 쌓이는데 각자 최대값으로
+    맞추면 납작한 덱과 뾰족한 덱의 막대 높이가 같아진다. 0.25로 고정하고,
+    그보다 높은 막대가 있으면 그 값까지 늘려 잘리지 않게 한다.
     """
-    top = max(dist) if dist and max(dist) > 0 else 1.0
+    top = max(0.25, max(dist) if dist else 0.0)
     bars = []
     for index, ratio in enumerate(dist[:8]):
         rank = index + 1
@@ -156,7 +159,7 @@ def _deck_card(deck):
 </div>
 <div class="nums">
   <span>픽률 <b>{deck["pick_rate"]:.1%}</b></span>
-  <span>8인 로비 기대 경합 <b>{deck["expected_contest"]:.1f}명</b></span>
+  <span>8인 로비 기대 경합(나 제외) <b>{deck["expected_contest"]:.1f}명</b></span>
 </div>
 {dist_bars(deck["dist"])}
 <div class="legend">
@@ -253,10 +256,12 @@ def page(context):
 
     if context["decks"]:
         decks_html = "".join(_deck_card(deck) for deck in context["decks"])
+        heading = f'이번 패치 너의 {len(context["decks"])}덱'
     else:
         decks_html = ('<div class="card"><h3>아직 데이터가 없다</h3>'
                       '<p class="muted">셋이 막 바뀌었거나 표본이 하한에 못 미친다. '
                       '집계가 쌓이면 자동으로 채워진다. 그동안은 아래 기본기를 본다.</p></div>')
+        heading = "추천할 덱이 아직 없다"
 
     return f"""<!doctype html>
 <html lang="ko"><head>
@@ -271,7 +276,7 @@ KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 {_e(context["generated_at"])} 기준</p>
 {stale}
 {_diff_banner(context["diff"], context.get("notes"))}
-<h2>이번 패치 너의 {len(context["decks"])}덱</h2>
+<h2>{_e(heading)}</h2>
 <p class="muted">Δ = 브실골 평균등수 − 다이아+ 평균등수. 음수면 네 티어에서 더 잘 나오는 덱이다.
 평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.</p>
 {decks_html}

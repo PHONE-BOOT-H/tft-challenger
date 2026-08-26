@@ -64,7 +64,8 @@ def merge_delta(low, low_total, high):
             "delta": delta,
             "count": entry["count"],
             "pick_rate": pick_rate,
-            "expected_contest": pick_rate * LOBBY_SIZE,
+            # 경합은 "나 말고 같은 덱을 하는 사람" 수다. 나를 빼고 7명으로 센다.
+            "expected_contest": pick_rate * (LOBBY_SIZE - 1),
             "dist": entry["dist"],
         })
     rows.sort(key=lambda row: (row["delta"] is None, row["delta"] or 0.0))

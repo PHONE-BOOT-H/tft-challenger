@@ -79,3 +79,12 @@ def test_직전이_없으면_None을_준다(tmp_path, monkeypatch):
     monkeypatch.setattr(patchdiff, "DAILY", tmp_path)
     save(_snap("18.1", [("410000", "A덱", 4.1)]), "2026-09-01")
     assert load_previous(before="2026-09-01") is None
+
+
+def test_셋이_바뀌면_직전이_없는_것으로_친다():
+    # 클러스터 공간이 갈린다. 넘어서 비교하면 새 셋 첫 빌드가 전 덱을 "새로 진입"이라 외친다.
+    previous = dict(_snap("18.9", [("410000", "A덱", 4.1)]), set="TFTSet18")
+    current = dict(_snap("19.1", [("510000", "B덱", 4.2)]), set="TFTSet19")
+    result = compare(previous, current)
+    assert result["patch_changed"] is False
+    assert result["entered"] == [] and result["left"] == []
