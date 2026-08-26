@@ -26,6 +26,7 @@ GitHub Actions가 매일 위를 돌리고 `dist/`를 Pages로 배포한다.
 | `src/validate.py` | 셋·패치·cluster_id 게이트. 불일치면 렌더 거부 |
 | `src/build.py` | 조인 + Δ 계산 + ko_KR 한글화 |
 | `src/patchdiff.py` | 직전 커밋 데이터와 비교 → 패치 변화 |
+| `src/notes.py` | 패치 감지 시 공식 노트 요약 |
 | `src/render.py` | 단일 HTML 출력 |
 | `data/daily/` | 축약 스냅샷. 커밋됨 = 메타 변천사 |
 | `data/notes.yaml` | 보정 주석 (출처 링크 필수) |
