@@ -67,7 +67,8 @@ body {
   word-break: keep-all; overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-.num, td.n, th.n {
+/* 모노는 .num 이 붙은 곳에만. 한글이 모노 스택으로 새면 자간이 벌어져 읽기 나빠진다. */
+.num {
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono",
     Consolas, monospace;
   font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
@@ -257,6 +258,11 @@ def _e(value):
     return _html.escape(str(value), quote=True)
 
 
+def _figure_class(cell):
+    """수치 칸이면 모노를 씌운다. 한글이 섞인 칸은 본문 서체 그대로 둔다."""
+    return "n num" if not any("가" <= ch <= "힣" for ch in str(cell)) else "n"
+
+
 def dist_bars(dist):
     """등수분포 막대 여덟 개. 탑4는 파랑, 하위4는 빨강.
 
@@ -360,8 +366,8 @@ def _index_row(deck):
     """색인 표의 한 줄. Δ가 없는 덱은 칸을 비운다."""
     delta = "" if deck["delta"] is None else f'{deck["delta"]:+.2f}'
     return (f'<tr><td>{_e(deck["name"])}</td>'
-            f'<td class="n">{deck["avp_low"]:.2f}</td>'
-            f'<td class="n">{_e(delta)}</td></tr>')
+            f'<td class="n num">{deck["avp_low"]:.2f}</td>'
+            f'<td class="n num">{_e(delta)}</td></tr>')
 
 
 def index_section(title, indexes, name_of):
@@ -391,7 +397,8 @@ def _fundamentals(data):
     blocks = []
     for section in data.get("sections", []):
         rows = "".join(
-            "<tr>" + "".join(f'<td{" class=n" if i else ""}>{_e(cell)}</td>'
+            "<tr>" + "".join(f'<td class="{_figure_class(cell)}">{_e(cell)}</td>'
+                             if i else f"<td>{_e(cell)}</td>"
                              for i, cell in enumerate(row)) + "</tr>"
             for row in section.get("rows", [])
         )
