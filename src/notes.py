@@ -88,7 +88,20 @@ def summarize(patch_text, deck_names, url):
     text = next((b.text for b in response.content if b.type == "text"), None)
     if not text:
         return None
-    return {"bullets": json.loads(text)["bullets"], "url": url}
+
+    try:
+        parsed = json.loads(text)
+        bullets = parsed.get("bullets")
+        if not isinstance(bullets, list) or not all(isinstance(b, str) for b in bullets):
+            print("패치노트 요약 실패: bullets가 문자열 배열이 아님")
+            return None
+        return {"bullets": bullets, "url": url}
+    except json.JSONDecodeError as exc:
+        print(f"패치노트 요약 실패: {exc}")
+        return None
+    except (KeyError, TypeError) as exc:
+        print(f"패치노트 요약 실패: {exc}")
+        return None
 
 
 def maybe_summarize(diff, deck_names):
