@@ -46,17 +46,30 @@ def test_안_닮은_덱은_아예_넣지_않는다():
 
 
 def test_동점이면_평균등수가_더_좋은_stage5를_고른다():
-    # 두 stage-5 후보 모두 Jaccard 0.6으로 동점(교집합 3, 합집합 5)이지만
-    # 평균 등수(final_place_avg)는 인덱스 1쪽(2.0)이 인덱스 0쪽(5.0)보다 좋다.
-    # 인덱스가 큰 쪽을 무조건 고르던 예전 방식이면 우연히 맞지만,
-    # 평균 등수를 무시하는 구현이면 이 값을 바꿔서 걸러낼 수 있다.
+    # 두 stage-5 후보 모두 Jaccard 0.6으로 동점(교집합 3, 합집합 5)이다.
+    # 평균 등수(final_place_avg)는 인덱스 0쪽(2.0)이 인덱스 1쪽(5.0)보다 좋으므로
+    # 인덱스 0이 선택돼야 한다. 인덱스가 큰 쪽을 무조건 고르던 예전 방식이면
+    # 평균 등수와 무관하게 인덱스 1을 골라 이 테스트가 실패한다.
     early = {"comps_overview": {"stage-5": {"comps": [
-        {"units": {"K": {}, "L": {}, "M": {}, "O": {}}, "stats": {"final_place_avg": 5.0}},
-        {"units": {"K": {}, "L": {}, "N": {}, "P": {}}, "stats": {"final_place_avg": 2.0}},
+        {"units": {"K": {}, "L": {}, "M": {}, "O": {}}, "stats": {"final_place_avg": 2.0}},
+        {"units": {"K": {}, "L": {}, "N": {}, "P": {}}, "stats": {"final_place_avg": 5.0}},
     ]}}}
     final = {"c": {"K", "L", "M", "N"}}
     matched = match_stage5(final, early)
-    assert matched["c"] == 1
+    assert matched["c"] == 0
+
+
+def test_동점이고_평균등수가_없으면_인덱스가_낮은_쪽을_고른다():
+    # 두 stage-5 후보 모두 Jaccard 0.6으로 동점이고 final_place_avg가 둘 다 없다
+    # (없으면 최하 취급이라 둘 다 동률). 이때는 인덱스가 낮은 쪽(0)을 고른다.
+    # 값이 둘 다 같은 숫자로 동일한 경우도 동률 처리는 같다.
+    early = {"comps_overview": {"stage-5": {"comps": [
+        {"units": {"K": {}, "L": {}, "M": {}, "O": {}}},
+        {"units": {"K": {}, "L": {}, "N": {}, "P": {}}},
+    ]}}}
+    final = {"c": {"K", "L", "M", "N"}}
+    matched = match_stage5(final, early)
+    assert matched["c"] == 0
 
 
 def test_경로는_스테이지2부터_5까지_네_칸이다():
