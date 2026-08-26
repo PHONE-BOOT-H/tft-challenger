@@ -1,7 +1,8 @@
 """단일 HTML 출력. 계산은 하지 않는다.
 
 색상 토큰은 dataviz 검증기를 통과한 값이다(라이트/다크 전 항목 PASS,
-CVD ΔE 21.6/19.2). 임의로 바꾸지 말 것.
+CVD ΔE 21.6/19.2). 임의로 바꾸지 말 것. 아래 --surface-2/--line/--rail 은
+그 여섯 색을 건드리지 않고 같은 웜뉴트럴 계열로 덧붙인 표면 토큰이다.
 등수분포는 탑4/하위4 두 계열이라 색만으로 구분하지 않고 값 라벨을 같이 붙인다.
 """
 
@@ -9,62 +10,226 @@ import html as _html
 
 from .notes import is_patch_number
 
+# 폰트는 CDN이 막혀도 폴백 스택으로 멀쩡히 읽혀야 한다 — 본문은 프리텐다드,
+# 숫자만 JetBrains Mono. 숫자에만 모노를 씌우는 게 이 페이지 타이포 대비의 전부다.
+FONT_LINKS = """<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400..700&amp;display=swap">"""
+
+# Δ 삼각형 하나. 파일을 따로 두면 Pages 배포에서 빠질 수 있어 data URI로 박는다.
+FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+           "%3Crect width='32' height='32' rx='7' fill='%231a1a19'/%3E"
+           "%3Cpath d='M16 7 L26 25 H6 Z' fill='%233987e5'/%3E%3C/svg%3E")
+
+# 종이결 한 겹. 네트워크 요청 없이 feTurbulence를 data URI로 굽는다.
+_GRAIN = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E"
+          "%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' "
+          "numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E"
+          "%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")
+
 CSS = """
 :root {
   color-scheme: light;
   --surface: #fcfcfb; --text: #0b0b0b; --text2: #52514e;
   --top4: #2a78d6; --bot4: #e34948; --mid: #f0efec;
+  --surface-2: #f6f5f1; --line: #e5e3da; --rail: #d6d4c9;
+  --shadow: 0 1px 1px rgba(66,62,48,.05), 0 6px 16px -10px rgba(66,62,48,.20);
+  --grain: .035;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --surface: #1a1a19; --text: #ffffff; --text2: #c3c2b7;
     --top4: #3987e5; --bot4: #e66767; --mid: #383835;
+    --surface-2: #232322; --line: #34342f; --rail: #43423b;
+    --shadow: 0 1px 1px rgba(6,6,4,.45), 0 8px 20px -12px rgba(6,6,4,.80);
+    --grain: .05;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --surface: #1a1a19; --text: #ffffff; --text2: #c3c2b7;
   --top4: #3987e5; --bot4: #e66767; --mid: #383835;
+  --surface-2: #232322; --line: #34342f; --rail: #43423b;
+  --shadow: 0 1px 1px rgba(6,6,4,.45), 0 8px 20px -12px rgba(6,6,4,.80);
+  --grain: .05;
 }
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; padding: 16px; background: var(--surface); color: var(--text);
-  font: 15px/1.6 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  max-width: 760px; margin-inline: auto;
+  margin: 0 auto; padding: 20px 16px 44px; max-width: 780px;
+  background: var(--surface); color: var(--text);
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-size: 15px; line-height: 1.62; font-weight: 400;
+  word-break: keep-all; overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-h1 { font-size: 20px; margin: 0 0 4px; }
-h2 { font-size: 16px; margin: 28px 0 10px; }
+.num, td.n, th.n {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono",
+    Consolas, monospace;
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+}
+
+/* 종이결. 요청 0회, 클릭 통과. */
+.grain {
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  opacity: var(--grain); background-image: url("GRAIN_URI");
+  background-size: 140px 140px;
+}
+.skip {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
+  padding: 9px 14px; border-radius: 10px; font-size: 14px; font-weight: 600;
+}
+.skip:focus { left: 12px; top: 12px; z-index: 10000; }
+:focus-visible { outline: 2px solid var(--top4); outline-offset: 3px; border-radius: 5px; }
+
+header { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -.022em; margin: 0 0 5px; }
+h2 {
+  font-size: 15px; font-weight: 700; letter-spacing: .005em; margin: 34px 0 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+h2::before {
+  content: ""; flex: none; width: 3px; height: 15px; border-radius: 2px;
+  background: var(--rail);
+}
 .meta, .muted { color: var(--text2); font-size: 13px; }
-.stale { background: var(--bot4); color: #fff; padding: 2px 8px; border-radius: 4px;
-         font-size: 12px; display: inline-block; }
-.card { border: 1px solid var(--mid); border-radius: 8px; padding: 14px; margin: 12px 0; }
-.card h3 { margin: 0 0 2px; font-size: 17px; }
-.nums { display: flex; gap: 18px; flex-wrap: wrap; margin: 10px 0 6px; }
-.nums b { font-variant-numeric: tabular-nums; font-weight: 600; }
-.badge { font-size: 12px; padding: 2px 8px; border-radius: 4px; color: #fff; }
-.badge.low { background: var(--top4); }
-.badge.high { background: var(--bot4); }
-.dist { display: flex; align-items: flex-end; gap: 2px; height: 46px; margin: 10px 0 4px; }
-.dist-bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 2px; }
+.meta { margin: 0; }
+p.muted { margin: 6px 0 10px; }
+.stale {
+  background: var(--bot4); color: #fff; padding: 3px 9px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; letter-spacing: .01em; display: inline-block;
+}
+
+/* 안내 상자(게이트 정지·패치 배너·덱 없음). 테두리 대신 살짝 떠 있는 표면. */
+.card {
+  background: var(--surface-2); border-radius: 12px; padding: 13px 15px;
+  margin: 12px 0; box-shadow: var(--shadow);
+}
+.card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.card ul { margin: 6px 0; padding-left: 18px; }
+.card li { font-size: 13px; margin: 2px 0; }
+
+/* 덱 카드. 테두리 대신 왼쪽 레일 하나 — 색이 Δ의 부호를 그대로 말한다. */
+.deck {
+  position: relative; background: var(--surface-2); box-shadow: var(--shadow);
+  padding: 14px 15px 15px; margin: 10px 0;
+  border-radius: 6px 14px 14px 6px;
+  border-left: 4px solid var(--rail);
+}
+.deck.low { border-left-color: var(--top4); }
+.deck.high { border-left-color: var(--bot4); }
+.deck-name { margin: 0 0 3px; font-size: 17px; font-weight: 700; letter-spacing: -.015em; }
+
+.figures {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px;
+  margin: 13px 0 2px;
+}
+.fig { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fig-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .085em; color: var(--text2);
+  text-transform: uppercase; white-space: nowrap;
+}
+.fig-value { font-size: 15px; font-weight: 500; line-height: 1.15; }
+.fig.hero { padding-right: 18px; border-right: 1px solid var(--line); }
+.fig.hero .fig-value { font-size: 34px; font-weight: 700; letter-spacing: -.045em; }
+.fig.hero.low .fig-value { color: var(--top4); }
+.fig.hero.high .fig-value { color: var(--bot4); }
+.fig.sec .fig-value { font-size: 22px; font-weight: 600; letter-spacing: -.025em; }
+/* 값이 숫자가 아닐 때(표본 없음 등). 히어로 자리라도 크게 키우지 않는다. */
+.fig-value.none { font-size: 14px; font-weight: 500; color: var(--text2); }
+.fig.hero .fig-value.none { font-size: 19px; }
+.fig-note { font-size: 11px; font-weight: 600; color: var(--text2); margin-top: 2px; }
+
+/* 막대 높이는 dist_bars가 px로 박는다(최대 46). 넓은 화면에서 폭까지 늘어나면
+   분포가 아니라 덩어리로 보여서 컨테이너 폭을 묶어 비율을 모바일과 같게 유지한다. */
+.dist, .dist-axis { max-width: 340px; }
+.dist { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin: 13px 0 3px; }
+.dist-bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 2px; }
 .dist-bar.top4 { background: var(--top4); }
 .dist-bar.bot4 { background: var(--bot4); }
-.dist-axis { display: flex; gap: 2px; }
-.dist-axis span { flex: 1; text-align: center; font-size: 11px; color: var(--text2); }
-.legend { font-size: 12px; color: var(--text2); }
-.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
-            margin-right: 4px; vertical-align: baseline; }
-.route { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
-.route div { border: 1px solid var(--mid); border-radius: 6px; padding: 6px 8px; }
-.route b { display: block; color: var(--text2); font-size: 11px; font-weight: 600; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-td, th { border-bottom: 1px solid var(--mid); padding: 6px 4px; text-align: left; }
-td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
-.scroll { overflow-x: auto; }
-blockquote { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--mid);
-             color: var(--text2); font-size: 13px; }
-a { color: inherit; }
-""".strip()
+.dist-axis { display: flex; gap: 3px; }
+.dist-axis span {
+  flex: 1; text-align: center; font-size: 10px; color: var(--text2);
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+.legend { font-size: 12px; color: var(--text2); margin: 7px 0 0; }
+.legend i {
+  display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+  margin-right: 4px; vertical-align: baseline;
+}
+
+/* 빌드업 경로는 상자 네 개가 아니라 순서 하나다 — 세로 레일로 잇는다. */
+.route { list-style: none; margin: 12px 0 0; padding: 2px 0 2px 20px; position: relative; }
+.route::before {
+  content: ""; position: absolute; left: 4px; top: 10px; bottom: 10px;
+  width: 2px; border-radius: 1px; background: var(--rail);
+}
+.route li { position: relative; padding: 4px 0; font-size: 13px; }
+.route li::before {
+  content: ""; position: absolute; left: -20px; top: 12px;
+  width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box;
+  background: var(--surface-2); border: 2px solid var(--rail);
+}
+.route li:last-child::before { background: var(--text2); border-color: var(--text2); }
+.route b {
+  display: block; font-size: 10px; font-weight: 600; letter-spacing: .085em;
+  color: var(--text2); text-transform: uppercase;
+}
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th {
+  font-size: 10px; font-weight: 600; letter-spacing: .085em; color: var(--text2);
+  text-transform: uppercase;
+}
+td, th { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; }
+td.n, th.n { text-align: right; }
+table tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+details { margin: 3px 0; border-radius: 10px; }
+details[open] { background: var(--surface-2); padding-bottom: 6px; }
+summary {
+  cursor: pointer; padding: 7px 9px; border-radius: 10px; font-size: 14px;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+summary:hover { background: var(--surface-2); color: var(--top4); }
+summary:active { background: var(--mid); }
+details[open] summary { font-weight: 600; }
+details .scroll { padding: 0 9px 2px; }
+
+.sub {
+  font-size: 10px; font-weight: 700; letter-spacing: .095em; color: var(--text2);
+  text-transform: uppercase; margin: 18px 0 4px;
+}
+blockquote {
+  margin: 8px 0; padding: 3px 0 3px 12px; border-left: 3px solid var(--rail);
+  border-radius: 0 5px 5px 0; color: var(--text2); font-size: 13px;
+}
+a {
+  color: inherit; text-decoration-color: var(--rail); text-underline-offset: 3px;
+  transition: color 180ms ease, text-decoration-color 180ms ease;
+}
+a:hover { color: var(--top4); text-decoration-color: currentColor; }
+a:active { opacity: .7; }
+footer {
+  margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line);
+  color: var(--text2); font-size: 12px;
+}
+footer p { margin: 0; }
+@media (max-width: 420px) {
+  body { padding: 16px 13px 36px; }
+  .fig.hero { padding-right: 14px; }
+  .fig.hero .fig-value { font-size: 31px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+""".strip().replace("GRAIN_URI", _GRAIN)
 
 _STAGE_LABEL = {"stage-2": "2스테이지", "stage-3": "3스테이지",
                 "stage-4": "4스테이지", "stage-5": "5스테이지"}
@@ -83,6 +248,9 @@ STALE_SCRIPT = """<script>
   box.hidden = false;
 })();
 </script>"""
+
+DESCRIPTION = ("브론즈·실버·골드 구간 전용 롤토체스 치트시트. 브실골과 다이아+ "
+               "평균등수 격차로 내 티어에서 실제로 잘 나오는 덱만 추린다.")
 
 
 def _e(value):
@@ -124,12 +292,22 @@ def _patch_text(patch):
     return f"패치 {_e(patch)}" if is_patch_number(patch) else f"집계 회차 {_e(patch)}"
 
 
-def _delta_badge(delta):
+def _delta_hero(delta):
+    """카드의 초점. (레일 클래스, 히어로 블록)을 돌려준다.
+
+    이 도구가 존재하는 이유가 Δ다. 나머지 숫자보다 두 배 크게, 부호대로 색을 입힌다.
+    """
     if delta is None:
-        return '<span class="muted">고티어 표본 없음</span>'
-    if delta < 0:
-        return f'<span class="badge low">Δ {delta:+.2f} 저티어 전용</span>'
-    return f'<span class="badge high">Δ {delta:+.2f} 고티어 전용</span>'
+        return "", ('<div class="fig hero">'
+                    '<span class="fig-label">Δ 티어 격차</span>'
+                    '<b class="fig-value none">잴 수 없음</b>'
+                    '<span class="fig-note">고티어 표본 없음</span></div>')
+    kind = "low" if delta < 0 else "high"
+    note = "저티어 전용" if delta < 0 else "고티어 전용"
+    return kind, (f'<div class="fig hero {kind}">'
+                  f'<span class="fig-label">Δ 티어 격차</span>'
+                  f'<b class="fig-value num">{delta:+.2f}</b>'
+                  f'<span class="fig-note">{note}</span></div>')
 
 
 def _route(steps):
@@ -141,34 +319,41 @@ def _route(steps):
         label = _STAGE_LABEL.get(step["stage"], step["stage"])
         units = ", ".join(_e(u) for u in step["units"])
         avp = "" if step.get("avp") is None else f' · 평균 {step["avp"]:.2f}'
-        cells.append(f"<div><b>{_e(label)}{avp}</b>{units}</div>")
+        cells.append(f"<li><b>{_e(label)}{avp}</b>{units}</li>")
     return ('<p class="muted">단계 경로 — 다이아+ 데이터다. 브실골 표본으로는 '
             '단계별 보드를 구할 수 없다.</p>'
-            f'<div class="route">{"".join(cells)}</div>')
+            f'<ol class="route">{"".join(cells)}</ol>')
 
 
 def _deck_card(deck):
-    high = "표본 없음" if deck["avp_high"] is None else f'{deck["avp_high"]:.2f}'
-    return f"""<div class="card">
-<h3>{_e(deck["name"])}</h3>
-<div class="meta">표본 {deck["count"]:,}판</div>
-<div class="nums">
-  <span>브실골 <b>{deck["avp_low"]:.2f}</b></span>
-  <span>다이아+ <b>{_e(high)}</b></span>
-  <span>{_delta_badge(deck["delta"])}</span>
-</div>
-<div class="nums">
-  <span>픽률 <b>{deck["pick_rate"]:.1%}</b></span>
-  <span>8인 로비 기대 경합(나 제외) <b>{deck["expected_contest"]:.1f}명</b></span>
+    # 한글이 모노 스택으로 새면 자간이 벌어져 숫자처럼 안 읽힌다 — num은 숫자에만 붙인다.
+    if deck["avp_high"] is None:
+        high = '<b class="fig-value none">표본 없음</b>'
+    else:
+        high = f'<b class="fig-value num">{deck["avp_high"]:.2f}</b>'
+    kind, hero = _delta_hero(deck["delta"])
+    return f"""<article class="deck {kind}">
+<h3 class="deck-name">{_e(deck["name"])}</h3>
+<p class="meta">표본 <span class="num">{deck["count"]:,}</span>판</p>
+<div class="figures">
+{hero}
+<div class="fig sec"><span class="fig-label">브실골 평균등수</span>
+<b class="fig-value num">{deck["avp_low"]:.2f}</b></div>
+<div class="fig"><span class="fig-label">다이아+ 평균등수</span>
+{high}</div>
+<div class="fig"><span class="fig-label">픽률</span>
+<b class="fig-value num">{deck["pick_rate"]:.1%}</b></div>
+<div class="fig"><span class="fig-label">기대 경합</span>
+<b class="fig-value"><span class="num">{deck["expected_contest"]:.1f}</span>명</b></div>
 </div>
 {dist_bars(deck["dist"])}
-<div class="legend">
-  <i style="background:var(--top4)"></i>1~4등
-  <i style="background:var(--bot4);margin-left:10px"></i>5~8등
-  · 탑4 {sum(deck["dist"][:4]):.0%}
-</div>
+<p class="legend">
+<i style="background:var(--top4)"></i>1~4등
+<i style="background:var(--bot4);margin-left:10px"></i>5~8등
+· 탑4 {sum(deck["dist"][:4]):.0%}
+</p>
 {_route(deck.get("route") or [])}
-</div>"""
+</article>"""
 
 
 def _index_row(deck):
@@ -196,8 +381,10 @@ def index_section(title, indexes, name_of):
                 f'<div class="scroll"><table><tr><th>덱</th><th class="n">브실골</th>'
                 f'<th class="n">Δ</th></tr>{rows}</table></div></details>'
             )
-        blocks.append(f'<h3>{_e(label)}</h3>{"".join(items)}')
-    return f'<h2>{_e(title)}</h2><p class="muted">손에 들어온 유닛으로 덱을 찾는다.</p>' + "".join(blocks)
+        blocks.append(f'<h3 class="sub">{_e(label)}</h3>{"".join(items)}')
+    return (f'<section><h2>{_e(title)}</h2>'
+            f'<p class="muted">손에 들어온 유닛으로 덱을 찾는다.</p>'
+            f'{"".join(blocks)}</section>')
 
 
 def _fundamentals(data):
@@ -212,9 +399,9 @@ def _fundamentals(data):
                  if section.get("quote") else "")
         note = f'<p class="muted">{_e(section["note"])}</p>' if section.get("note") else ""
         blocks.append(
-            f'<h2>{_e(section["title"])}</h2>{note}{quote}'
+            f'<section><h2>{_e(section["title"])}</h2>{note}{quote}'
             f'<div class="scroll"><table>{rows}</table></div>'
-            f'<p class="muted"><a href="{_e(section["source"])}">출처 원문</a></p>'
+            f'<p class="muted"><a href="{_e(section["source"])}">출처 원문</a></p></section>'
         )
     return "".join(blocks)
 
@@ -238,7 +425,8 @@ def _diff_banner(diff, summary):
     lines = []
     for row in diff.get("moved", []):
         arrow = "나빠짐" if row["after"] > row["before"] else "좋아짐"
-        lines.append(f'<li>{_e(row["name"])} {row["before"]:.2f} → {row["after"]:.2f} ({arrow})</li>')
+        lines.append(f'<li>{_e(row["name"])} <span class="num">{row["before"]:.2f} → '
+                     f'{row["after"]:.2f}</span> ({arrow})</li>')
     for row in diff.get("entered", []):
         lines.append(f'<li>{_e(row.get("name"))} 새로 진입</li>')
     for row in diff.get("left", []):
@@ -281,23 +469,43 @@ def page(context):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>브실골 롤체 치트시트</title>
+<meta name="description" content="{_e(DESCRIPTION)}">
+<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="브실골 롤체 치트시트">
+<meta property="og:description" content="{_e(DESCRIPTION)}">
+<link rel="icon" href="{FAVICON}">
+{FONT_LINKS}
 <style>{CSS}</style>
 </head><body data-generated="{_e(context.get("generated_iso", ""))}">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<div class="grain" aria-hidden="true"></div>
+<header>
 <h1>브실골 롤체 치트시트</h1>
 <p class="meta">{_e(context["set"])} · {_patch_text(context["patch"])} ·
-KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
+KR 브론즈~골드 <span class="num">{context["sample_days"]}</span>일
+<span class="num">{context["total_games"]:,}</span>판 ·
 {_e(context["generated_at"])} 기준</p>
+</header>
+<main id="main">
 {_gate_stop_card(context.get("gate_stop"))}
 {stale}
 {_diff_banner(context["diff"], context.get("notes"))}
+<section>
 <h2>{_e(heading)}</h2>
 <p class="muted">Δ = 브실골 평균등수 − 다이아+ 평균등수. 음수면 네 티어에서 더 잘 나오는 덱이다.
-평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.</p>
+평균등수만으로 줄 세우지 않는다 — 등수 분포와 픽률을 같이 본다.
+기대 경합은 8인 로비에서 나를 뺀 일곱 명 중 같은 덱을 잡는 사람 수다.</p>
 {decks_html}
+</section>
 {index_section("유닛으로 찾기", context.get("indexes") or {}, context.get("name_of", str))}
 {_fundamentals(context["fundamentals"])}
-<h2>출처</h2>
-<p class="muted">덱 통계·단계 경로: MetaTFT · 한글 이름표: Riot Data Dragon<br>
+</main>
+<footer>
+<p>덱 통계·단계 경로: MetaTFT · 한글 이름표: Riot Data Dragon<br>
 Riot Games가 승인하거나 후원한 프로젝트가 아니다.</p>
+</footer>
 {STALE_SCRIPT}
 </body></html>"""
