@@ -12,12 +12,12 @@
 
 ```bash
 pip install -r requirements.txt
-python -m src.fetch      # MetaTFT + ddragon 수집 → data/raw/
-python -m src.build      # 검증 → 조인 → dist/index.html
+python -m src.build      # 수집 → 검증 → 조인 → dist/index.html
+python -m src.fetch      # (선택) 원본 페이로드만 받아 data/raw/에 떨궈 들여다볼 때
 pytest                   # 골든 테스트
 ```
 
-GitHub Actions가 매일 위를 돌리고 `dist/`를 Pages로 배포한다.
+GitHub Actions가 매일 `python -m src.build`를 돌리고 `dist/`를 Pages로 배포한다.
 패치가 감지되면 3일간 6시간 주기로 올린다.
 
 ## 구조
@@ -31,7 +31,7 @@ GitHub Actions가 매일 위를 돌리고 `dist/`를 Pages로 배포한다.
 | `src/notes.py` | 패치 감지 시 공식 노트 요약 |
 | `src/render.py` | 단일 HTML 출력 |
 | `data/daily/` | 축약 스냅샷. 커밋됨 = 메타 변천사 |
-| `data/notes.yaml` | 보정 주석 (출처 링크 필수) |
+| `data/fundamentals.json` | 출처 있는 기본기 표 (출처 링크 필수) |
 
 ## 데이터 출처
 
