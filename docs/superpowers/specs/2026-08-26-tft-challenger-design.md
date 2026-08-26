@@ -123,18 +123,27 @@ GitHub Actions (매일 KST 새벽 / 패치 감지 시 3일간 6시간마다)
 | `patchdiff` | 직전 스냅샷과 비교 | 네트워크 접근 |
 | `notes` | 패치노트 요약 생성 | 통계 해석 |
 | `build` | 조인·Δ·한글화·축약 | HTML 생성 |
+
+**조인 방식 (중요).** `early-comps`의 stage-5 보드와 `comps_data`의 최종 덱은 id로 이어지지
+않는다. 클러스터 공간이 다르고, `early-comps`의 `cluster`는 스테이지 내 인덱스일 뿐이다.
+양쪽 모두 유닛 목록을 주므로(early=`units`, 최종=`units_string`) **유닛 집합의 Jaccard
+유사도로 매칭**한다. 임계값 미달이면 그 덱은 단계 경로 없이 통계만 표시하고 매칭 실패를
+로그에 남긴다. 억지로 붙이지 않는다 — 틀린 경로가 경로 없음보다 나쁘다.
 | `render` | HTML 출력 | 계산 |
 
 ### 데이터 출처
 
 **MetaTFT** (`api-hc.metatft.com`, `api.metatft.com`) — 비인증.
 
-- `tft-comps-api/latest_cluster_id` — **먼저 뽑아서 나머지 전부에 물린다.**
+- `tft-comps-api/latest_cluster_id` — **먼저 뽑아서 `comps_*` 계열 전부에 물린다.**
   안 물리면 `comps_stats`와 `comps_data`가 서로 다른 덱을 말한다.
+  ⚠ `early-comps`는 **다른 클러스터 공간**이다(실측: comps=409, early=2630). 여기엔 안 물린다.
 - `tft-comps-api/comps_stats?queue=1100&patch=current&days=3&rank=BRONZE,SILVER,GOLD&server=KR`
 - `tft-comps-api/comps_data` + `comp_options` — 덱 정의, 레벨 6/7/8/9 보드
 - `api.metatft.com/tft-early-comps/comps_overview` — 스테이지 2/3/4/5 보드 +
-  `forwards_links` 전환 가중치. **다이아+ 전용**
+  `forwards_links` 전환 가중치. **다이아+ 전용** — `rank`/`server` 파라미터를 붙여도
+  응답이 동일하다(실측 확인). 단계 경로의 티어 분리는 불가능하다. 이것이 이 프로젝트의
+  핵심 제약이며, 경로는 "다이아+ 것"으로 명시하고 보정 주석을 얹어 다룬다.
 - `tft-comps-api/comp_details?comp=…` — 카운터
 
 MetaTFT를 고른 이유: ToS 전문에서 scrape/crawl/bot/API/reverse-engineer 조항 **0건**,
@@ -233,6 +242,67 @@ op.gg 표는 16.1 이전 값을 서빙 중이라 쓰지 않는다.
 
 ## 9. 미해결
 
-- TFT Academy ToS 확인 (구현 착수 전)
 - 셋18 랭크 리셋 구간 — 18.1 패치노트에 랭크 항목 자체가 없음
 - 셋18 로스터 규모 — 출처마다 64/65로 갈림. 하드코딩 금지, ddragon에서 읽는다
+
+
+## 부록 A — 2026-08-26 실측 검증
+
+설계 가정을 실제 호출로 확인한 결과. 스펙의 근거는 리서치 보고가 아니라 이 실측이다.
+
+### 엔드포인트 응답
+
+| 엔드포인트 | 상태 | 크기 |
+|---|---|---|
+| `latest_cluster_id` | 200 | 63 B |
+| `comps_stats` (브실골+KR, 3일) | 200 | 5.7 KB |
+| `comps_data` | 200 | 346 KB |
+| `comp_options` | 200 | **5.9 MB** — 필요한 필드만 뽑아 쓴다 |
+| `tft-early-comps/comps_overview` | 200 | 878 KB |
+
+### 랭크·서버 필터는 실제로 조합된다
+
+| 파라미터 | 표본(3일) |
+|---|---|
+| `rank=BRONZE,SILVER,GOLD&server=KR` | 192,121 |
+| `rank=BRONZE,SILVER,GOLD` | 1,110,222 |
+| `rank=DIAMOND,MASTER,GRANDMASTER,CHALLENGER&server=KR` | 191,512 |
+| `server=KR` | 955,500 |
+| 무필터 | 4,858,840 |
+
+### early-comps 구조
+
+```
+tft_set / clustering_id / clustering_created_at / sampleSize / latestPatchSampleSize
+comps_overview
+  stage-2  38개  forwards_links 길이 46  ─┐
+  stage-3  46개  forwards_links 길이 49  ─┤ 길이 = 다음 스테이지 덱 개수
+  stage-4  49개  forwards_links 길이 50  ─┘
+  stage-5  50개  forwards_links 없음, backwards_links 있음
+```
+
+덱 하나당: `cluster`(스테이지 내 인덱스) · `name`(유닛 apiName 나열) · `units` ·
+`stats` / `latest_stats`.
+
+`stats` 안에 쓸 만한 필드:
+
+- `final_place_avg` — **이 스테이지에 이 보드였던 사람의 최종 평균등수.**
+  "이 초반 보드가 좋은 초반 보드인가"에 직접 답한다
+- `matchup_avg_hp_delta`, `avg_hp` — 스테이지별 체력 손익.
+  "브실골은 초중반에 덜 맞으니 고점을 봐도 된다"는 이 프로젝트의 전제를 재는 지표다.
+  다이아+ 표본이라 절대값은 못 쓰지만 덱 간 상대 비교로는 쓴다
+- `latest_stats` — 최신 패치분만. 패치 diff에 쓴다
+
+### TFT Academy 약관 — 통과
+
+전문(5개 조항) 확보. `scrape` `crawl` `bot` `spider` `automated` `data min` `api`
+`reverse` `commercial` `reproduce` `redistribut` `mirror` `derivative` **전부 0건.**
+내용은 합법적 이용 · 타 사용자 방해 금지 · Riot IP 귀속 고지뿐.
+robots.txt는 `/dashboard/` `/_app/` `/tools/tierlist_maker/*` 외 전체 허용.
+→ 첫 주 폴백으로 사용 가능. 출처 표기와 링크는 넣는다.
+
+### 셋 게이트가 지금 당장 필요하다는 증거
+
+오늘 시점 `latest_cluster_id` 응답: `{"tft_set":"TFTSet17","cluster_id":409}`.
+`early-comps`도 `TFTSet17`. **셋18이 오늘 라이브인데 집계는 전부 셋17이다.**
+게이트 없이 렌더하면 지난 셋 덱을 이번 셋 덱이라고 내놓는다.
