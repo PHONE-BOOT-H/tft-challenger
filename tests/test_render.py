@@ -5,6 +5,7 @@ def _context(**overrides):
     context = {
         "set": "TFTSet18", "patch": "18.1",
         "generated_at": "2026-09-01 05:00 KST",
+        "generated_iso": "2026-08-31T20:00:00Z",
         "total_games": 192121, "sample_days": 3, "stale_hours": 0,
         "decks": [{
             "cluster": "410000", "name": "자야 리롤",
@@ -75,6 +76,13 @@ def test_라이트와_다크_토큰이_모두_정의된다():
     assert "#fcfcfb" in html and "#1a1a19" in html
     assert 'prefers-color-scheme: dark' in html
     assert '[data-theme="dark"]' in html
+
+
+def test_신선한_페이지의_배지는_숨겨진_채로_나간다():
+    # 스크립트가 채울 자리는 만들어두되, JS가 없으면 지금과 똑같이 보여야 한다 — 빈 상자 금지.
+    html = page(_context())
+    assert '<p id="stale-box" hidden><span class="stale"></span></p>' in html
+    assert 'data-generated="2026-08-31T20:00:00Z"' in html
 
 
 def test_클러스터_id를_패치_번호라고_부르지_않는다():

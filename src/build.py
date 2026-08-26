@@ -74,6 +74,8 @@ def build_context(payloads, cfg, now):
         "set": payloads["latest_cluster_id"]["tft_set"],
         "patch": patch,
         "generated_at": now.strftime("%Y-%m-%d %H:%M KST"),
+        # 페이지가 스스로 나이를 계산할 수 있게 기계가 읽는 형태로도 같이 내보낸다.
+        "generated_iso": now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "total_games": total,
         "sample_days": cfg["days"],
         "stale_hours": 0,

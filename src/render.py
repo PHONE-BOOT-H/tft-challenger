@@ -69,6 +69,21 @@ a { color: inherit; }
 _STAGE_LABEL = {"stage-2": "2스테이지", "stage-3": "3스테이지",
                 "stage-4": "4스테이지", "stage-5": "5스테이지"}
 
+# 갱신이 끊기면 Pages는 마지막 페이지를 계속 내준다. 돌지 않은 빌드는 자기가 늙었다는 걸
+# 알 수 없으니, 페이지가 body[data-generated]를 읽어 스스로 나이를 재고 배지를 켠다.
+# 스크립트가 죽어 있으면 배지는 hidden인 채로 남고 나머지는 지금과 똑같이 보인다.
+STALE_SCRIPT = """<script>
+(function () {
+  var box = document.getElementById("stale-box");
+  var iso = document.body.getAttribute("data-generated");
+  if (!box || !iso || !box.hidden) return;   // 서버가 이미 띄웠으면 그대로 둔다
+  var hours = Math.floor((Date.now() - Date.parse(iso)) / 3600000);
+  if (!(hours >= 24)) return;                // 파싱 실패(NaN)면 아무것도 하지 않는다
+  box.firstElementChild.textContent = hours + "시간 전 데이터 — 갱신 실패 중";
+  box.hidden = false;
+})();
+</script>"""
+
 
 def _e(value):
     return _html.escape(str(value), quote=True)
@@ -229,9 +244,12 @@ def _diff_banner(diff, summary):
 
 def page(context):
     """완성된 HTML 한 장."""
-    stale = ""
-    if context["stale_hours"] >= 24:
-        stale = f'<p><span class="stale">{context["stale_hours"]}시간 전 데이터 — 갱신 실패 중</span></p>'
+    # 배지는 항상 자리를 잡아두고 숨겨둔다 — 스크립트가 나중에 채울 수 있게.
+    # 빌드가 아예 안 돌면 서버는 자기 나이를 모른다. 그때는 페이지가 스스로 잰다.
+    stale_text = (f'{context["stale_hours"]}시간 전 데이터 — 갱신 실패 중'
+                  if context["stale_hours"] >= 24 else "")
+    stale = (f'<p id="stale-box"{"" if stale_text else " hidden"}>'
+             f'<span class="stale">{stale_text}</span></p>')
 
     if context["decks"]:
         decks_html = "".join(_deck_card(deck) for deck in context["decks"])
@@ -246,7 +264,7 @@ def page(context):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>브실골 롤체 치트시트</title>
 <style>{CSS}</style>
-</head><body>
+</head><body data-generated="{_e(context.get("generated_iso", ""))}">
 <h1>브실골 롤체 치트시트</h1>
 <p class="meta">{_e(context["set"])} · {_patch_text(context["patch"])} ·
 KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
@@ -262,4 +280,5 @@ KR 브론즈~골드 {context["sample_days"]}일 {context["total_games"]:,}판 ·
 <h2>출처</h2>
 <p class="muted">덱 통계·단계 경로: MetaTFT · 한글 이름표: Riot Data Dragon<br>
 Riot Games가 승인하거나 후원한 프로젝트가 아니다.</p>
+{STALE_SCRIPT}
 </body></html>"""
